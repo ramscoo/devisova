@@ -16,10 +16,10 @@ function renderForm() {
     const row = document.createElement('div');
     row.className = 'ligne-row';
     row.innerHTML = `
-      <input type="text" value="${l.desc}" data-i="${i}" data-field="desc" placeholder="Description">
-      <input type="number" value="${l.qty}" data-i="${i}" data-field="qty" min="0">
-      <input type="number" value="${l.prix}" data-i="${i}" data-field="prix" min="0" step="0.01">
-      <button type="button" class="remove-ligne" data-i="${i}">×</button>
+      <input type="text" value="${l.desc}" data-i="${i}" data-field="desc" placeholder="Description" aria-label="Description de la prestation">
+      <input type="number" value="${l.qty}" data-i="${i}" data-field="qty" min="0" aria-label="Quantité">
+      <input type="number" value="${l.prix}" data-i="${i}" data-field="prix" min="0" step="0.01" aria-label="Prix unitaire HT">
+      <button type="button" class="remove-ligne" data-i="${i}" aria-label="Supprimer cette ligne">×</button>
     `;
     container.appendChild(row);
   });

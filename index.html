@@ -5,7 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Devisio — Devis et factures pour indépendants, en 2 minutes</title>
 <meta name="description" content="L'outil de devis et facture pensé pour l'indépendant solo, quel que soit son métier. Simple, rapide, conforme à la facturation électronique 2026/2027.">
-<link rel="stylesheet" href="landing.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="tokens.css?v=2">
+<link rel="stylesheet" href="landing.css?v=2">
 </head>
 <body>
 
@@ -22,13 +26,13 @@
 <!-- ===== HERO ===== -->
 <section class="hero">
   <div class="hero-text">
-    <span class="badge">Conforme facturation électronique 2026/2027</span>
-    <h1>Fais tes devis en 2 minutes, <br>pas en 2 heures.</h1>
-    <p class="hero-sub">Devisio est l'outil de devis et facture pensé pour l'indépendant solo — artisan, consultant, coach, photographe, graphiste... peu importe ton métier, pas la PME de 10 salariés. Simple, rapide, et 3 fois moins cher que les logiciels de gestion classiques.</p>
+    <h1>Ton devis prêt en 2 minutes, <br>pas en 2 heures.</h1>
+    <p class="hero-sub">Devisio est l'outil de devis et facture pensé pour l'indépendant solo — artisan, consultant, coach, photographe... Remplis tes infos, obtiens un document professionnel. Sans complexité inutile.</p>
     <div class="hero-cta">
-      <a href="app.html" class="btn-primary-lg">Créer mon premier devis — gratuit</a>
-      <span class="hero-note">Aucune carte bancaire requise</span>
+      <a href="app.html" class="btn-primary-lg">Créer mon premier devis</a>
+      <a href="#steps" class="cta-secondary">Voir comment ça marche →</a>
     </div>
+    <span class="hero-note">Aucune carte bancaire requise</span>
   </div>
   <div class="hero-visual">
     <div class="mock-devis">
@@ -47,51 +51,51 @@
   </div>
 </section>
 
-<!-- ===== FEATURES ===== -->
+<!-- ===== COMMENT ÇA MARCHE ===== -->
+<section class="steps" id="steps">
+  <h2>Comment ça marche</h2>
+  <div class="steps-grid">
+    <div class="step">
+      <div class="step-num">1</div>
+      <h3>Remplis ton devis</h3>
+      <p>Ton entreprise, ton client, tes prestations — le total se calcule en direct.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <h3>Personnalise-le</h3>
+      <p>Ajoute ton logo, ajuste la TVA, vérifie l'aperçu en temps réel.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <h3>Télécharge ou partage</h3>
+      <p>PDF propre, prêt à envoyer à ton client en un clic.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== AVANTAGES ===== -->
 <section class="features" id="features">
   <h2>Tout ce qu'il te faut, rien de superflu</h2>
   <div class="features-grid">
     <div class="feature-card">
       <div class="feature-icon">⚡</div>
-      <h3>Devis en 2 minutes</h3>
-      <p>Renseigne tes lignes de prestation, le calcul HT/TVA/TTC se fait tout seul. Export PDF immédiat.</p>
+      <h3>Simple à utiliser</h3>
+      <p>Pas de courbe d'apprentissage. Tu remplis, tu vois le résultat, tu télécharges.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">📄</div>
+      <h3>Documents professionnels</h3>
+      <p>Un rendu propre et soigné, prêt à envoyer à n'importe quel client.</p>
     </div>
     <div class="feature-card">
       <div class="feature-icon">🧮</div>
       <h3>TVA automatique</h3>
-      <p>Choisis le bon taux (20%, 10%, 5,5%) selon le type de travaux, Devisio calcule le reste.</p>
+      <p>Choisis le bon taux, Devisio calcule le HT, la TVA et le TTC pour toi.</p>
     </div>
     <div class="feature-card">
-      <div class="feature-icon">✅</div>
-      <h3>Prêt pour 2026/2027</h3>
-      <p>Pensé dès le départ pour la réforme de la facturation électronique obligatoire.</p>
-    </div>
-    <div class="feature-card">
-      <div class="feature-icon">💶</div>
-      <h3>Prix pour un solo</h3>
-      <p>Pas besoin de payer pour des fonctions de gestion d'équipe que tu n'utilises pas. 12,99€/mois, un point c'est tout.</p>
-    </div>
-  </div>
-</section>
-
-<!-- ===== COMMENT ÇA MARCHE ===== -->
-<section class="steps">
-  <h2>Comment ça marche</h2>
-  <div class="steps-grid">
-    <div class="step">
-      <div class="step-num">1</div>
-      <h3>Renseigne tes infos</h3>
-      <p>Ton entreprise, ton client, une seule fois.</p>
-    </div>
-    <div class="step">
-      <div class="step-num">2</div>
-      <h3>Ajoute tes lignes</h3>
-      <p>Description, quantité, prix — le total se calcule en direct.</p>
-    </div>
-    <div class="step">
-      <div class="step-num">3</div>
-      <h3>Exporte ou envoie</h3>
-      <p>PDF propre, prêt à envoyer à ton client en un clic.</p>
+      <div class="feature-icon">📱</div>
+      <h3>Fonctionne sur mobile</h3>
+      <p>Crée ou retouche un devis depuis ton téléphone, entre deux chantiers.</p>
     </div>
   </div>
 </section>
@@ -101,26 +105,29 @@
   <h2>Un prix simple, pour un indépendant seul</h2>
   <div class="pricing-grid">
     <div class="price-card">
-      <h3>Gratuit</h3>
+      <h3>Free</h3>
       <div class="price">0€<span>/mois</span></div>
       <ul>
-        <li>3 devis par mois</li>
-        <li>Calcul automatique TVA/TTC</li>
+        <li>3 documents par mois</li>
         <li>Export PDF</li>
+        <li>1 modèle de document</li>
+        <li>Logo personnalisé</li>
       </ul>
       <a href="app.html" class="btn-outline">Commencer gratuitement</a>
     </div>
     <div class="price-card featured">
       <div class="price-tag">Le plus choisi</div>
       <h3>Pro</h3>
-      <div class="price">12,99€<span>/mois</span></div>
+      <div class="price">6,99€<span>/mois</span></div>
+      <p class="price-annual">ou 59,90€/an</p>
       <ul>
         <li>Devis et factures illimités</li>
-        <li>Logo et couleurs personnalisés</li>
-        <li>Clients sauvegardés</li>
-        <li>Conforme facturation électronique</li>
+        <li>Export PDF</li>
+        <li>Logo personnalisé</li>
+        <li>Calcul automatique HT / TVA / TTC</li>
+        <li>Historique des documents</li>
       </ul>
-      <a href="app.html" class="btn-primary-sm">Essayer 14 jours gratuits</a>
+      <a href="app.html" class="btn-primary-sm">Essayer gratuitement</a>
     </div>
   </div>
   <p class="pricing-note">Les autres logiciels de gestion facturent 39€ à 119€/mois pour des fonctionnalités pensées pour des équipes. Devisio est fait pour toi tout seul.</p>
@@ -134,8 +141,8 @@
     <div class="faq-a"><p>Oui, Devisio est construit pour respecter le format attendu par la réforme 2026/2027 qui concerne tous les indépendants, y compris les auto-entrepreneurs solo.</p></div>
   </div>
   <div class="faq-item">
-    <button class="faq-q">Puis-je annuler à tout moment ?<span>+</span></button>
-    <div class="faq-a"><p>Oui, aucun engagement. Tu peux annuler ton abonnement Pro à tout moment depuis ton compte.</p></div>
+    <button class="faq-q">Y a-t-il un engagement ?<span>+</span></button>
+    <div class="faq-a"><p>Non, aucun engagement. Devisio fonctionne aujourd'hui sans création de compte ni paiement en ligne — tu utilises l'outil librement.</p></div>
   </div>
   <div class="faq-item">
     <button class="faq-q">Mes données sont-elles en sécurité ?<span>+</span></button>
@@ -145,8 +152,8 @@
 
 <!-- ===== CTA FINAL ===== -->
 <section class="cta-final">
-  <h2>Prêt à arrêter de perdre du temps sur tes devis ?</h2>
-  <a href="app.html" class="btn-primary-lg">Créer mon premier devis — gratuit</a>
+  <h2>Prêt à créer ton premier devis ?</h2>
+  <a href="app.html" class="btn-primary-lg">Commencer gratuitement</a>
 </section>
 
 <footer class="footer">
@@ -154,6 +161,6 @@
   <p>Fait pour les indépendants qui préfèrent s'occuper de leur métier plutôt que de paperasse.</p>
 </footer>
 
-<script src="landing.js"></script>
+<script src="landing.js?v=2"></script>
 </body>
 </html>
