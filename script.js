@@ -108,7 +108,18 @@ function docType() {
   return document.getElementById('typeFacture').checked ? 'facture' : 'devis';
 }
 
+const TEMPLATES = ['classic', 'modern', 'elegant', 'minimal'];
+
+function docTemplate() {
+  const checked = document.querySelector('input[name="template"]:checked');
+  return (checked && TEMPLATES.includes(checked.value)) ? checked.value : 'classic';
+}
+
 function renderPreview() {
+  const preview = document.getElementById('preview');
+  TEMPLATES.forEach(t => preview.classList.remove(`template-${t}`));
+  preview.classList.add(`template-${docTemplate()}`);
+
   document.getElementById('pEntName').textContent = document.getElementById('entName').value || "Nom de l'entreprise";
   document.getElementById('pEntAdresse').textContent = document.getElementById('entAdresse').value;
   const siret = document.getElementById('entSiret').value;
@@ -122,6 +133,11 @@ function renderPreview() {
     logoImg.src = logoData;
     logoImg.style.display = 'block';
   } else {
+    // Un <img> sans src fait planter la décodification interne de html2canvas lors de la
+    // génération du PDF (promesse rejetée non interceptée : "Uncaught (in promise) #<Event>").
+    // Un pixel transparent 1x1 lui donne toujours une source valide à décoder, sans rien changer
+    // visuellement puisque l'élément reste display:none.
+    logoImg.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
     logoImg.style.display = 'none';
   }
 
@@ -263,6 +279,7 @@ function collectState() {
     cliAdresse: document.getElementById('cliAdresse').value,
     tva: document.getElementById('tva').value,
     devise: docCurrency(),
+    template: docTemplate(),
     lignes: lignes,
     logoData: logoData,
   };
@@ -281,6 +298,8 @@ function applyState(d) {
   document.getElementById('cliAdresse').value = d.cliAdresse || '';
   document.getElementById('tva').value = d.tva || '20';
   document.getElementById('devise').value = (d.devise && CURRENCIES[d.devise]) ? d.devise : 'EUR';
+  const tpl = (d.template && TEMPLATES.includes(d.template)) ? d.template : 'classic';
+  document.querySelector(`input[name="template"][value="${tpl}"]`).checked = true;
   lignes = d.lignes && d.lignes.length ? d.lignes : [{ desc: '', qty: 1, prix: 0, _pristine: true }];
   logoData = d.logoData || null;
   document.getElementById('logoLabel').textContent = logoData ? "✓ Logo ajouté (cliquer pour changer)" : "+ Ajouter mon logo (optionnel)";
@@ -368,6 +387,10 @@ document.getElementById('typeFacture').addEventListener('change', () => {
 document.getElementById('devise').addEventListener('change', () => {
   renderForm();
   renderPreview();
+});
+
+document.querySelectorAll('input[name="template"]').forEach(radio => {
+  radio.addEventListener('change', renderPreview);
 });
 
 // ===== Autres écouteurs =====

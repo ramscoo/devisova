@@ -93,6 +93,30 @@ body {
   color: var(--gray);
 }
 
+/* ===== Sélecteur de modèle de document ===== */
+.template-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.template-picker label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--dark);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.template-picker input[type="radio"] { accent-color: var(--blue); margin: 0; }
+
 input, select {
   padding: 10px 12px;
   border: 1px solid var(--border);
@@ -389,6 +413,170 @@ input::placeholder { color: var(--gray-light); }
   text-align: center;
   font-size: 11px;
   color: var(--gray);
+}
+
+/* ===================================================
+   Modèles de document
+   "Classic" = style par défaut ci-dessus, sans surcharge.
+   Chaque autre modèle ne redéfinit que la présentation
+   (mêmes éléments, mêmes données) via une classe posée
+   sur #preview — capturée telle quelle par le PDF.
+   =================================================== */
+
+/* ----- Modern : hiérarchie forte, accents colorés, aéré ----- */
+.preview-panel.template-modern .devis-header {
+  border-bottom: 3px solid var(--blue);
+  padding-bottom: 20px;
+  margin-bottom: 20px;
+}
+
+.preview-panel.template-modern .devis-ent-name {
+  font-size: 18px;
+  letter-spacing: -0.3px;
+}
+
+.preview-panel.template-modern .devis-title-main {
+  font-size: 26px;
+  letter-spacing: -0.5px;
+}
+
+.preview-panel.template-modern .devis-client {
+  background: var(--blue-soft);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+}
+
+.preview-panel.template-modern .devis-client-label {
+  color: var(--blue);
+  font-weight: var(--fw-bold);
+}
+
+.preview-panel.template-modern .devis-table th {
+  background: var(--blue-soft);
+  color: var(--blue);
+  font-weight: var(--fw-bold);
+  border-bottom: none;
+  padding: 10px 8px;
+}
+
+.preview-panel.template-modern .devis-table td {
+  padding: 10px 8px;
+}
+
+.preview-panel.template-modern .devis-totaux {
+  background: var(--bg);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  width: 260px;
+}
+
+.preview-panel.template-modern .devis-totaux .row.total {
+  border-top: 2px solid var(--blue);
+  color: var(--blue);
+}
+
+.preview-panel.template-modern .devis-footer {
+  font-weight: var(--fw-semibold);
+  color: var(--dark);
+}
+
+/* ----- Elegant : typographie raffinée, très sobre en couleur ----- */
+.preview-panel.template-elegant .devis-header {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 24px;
+  margin-bottom: 24px;
+}
+
+.preview-panel.template-elegant .devis-ent-name {
+  font-family: 'Lora', serif;
+  font-weight: 600;
+  font-size: 19px;
+  letter-spacing: 0.2px;
+}
+
+.preview-panel.template-elegant .devis-title-main {
+  font-family: 'Lora', serif;
+  font-weight: 600;
+  font-size: 24px;
+  letter-spacing: 0.5px;
+  color: var(--dark);
+}
+
+.preview-panel.template-elegant .devis-client {
+  background: transparent;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  padding: 12px 2px;
+}
+
+.preview-panel.template-elegant .devis-client-label {
+  letter-spacing: 1px;
+}
+
+.preview-panel.template-elegant .devis-table th {
+  font-weight: var(--fw-medium);
+  letter-spacing: 0.5px;
+}
+
+.preview-panel.template-elegant .devis-totaux .row.total {
+  border-top: 1px solid var(--dark);
+  font-family: 'Lora', serif;
+  font-size: 17px;
+}
+
+.preview-panel.template-elegant .devis-footer {
+  font-style: italic;
+  letter-spacing: 0.3px;
+}
+
+/* ----- Minimal : épuré, hairlines, aucune couleur de fond ----- */
+.preview-panel.template-minimal .devis-header {
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 20px;
+  margin-bottom: 24px;
+}
+
+.preview-panel.template-minimal .devis-ent-name {
+  font-weight: var(--fw-semibold);
+  font-size: 15px;
+}
+
+.preview-panel.template-minimal .devis-title-main {
+  font-size: 18px;
+  font-weight: var(--fw-semibold);
+  color: var(--dark);
+}
+
+.preview-panel.template-minimal .devis-client {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  margin-bottom: 20px;
+}
+
+.preview-panel.template-minimal .devis-client-label {
+  font-weight: var(--fw-regular);
+}
+
+.preview-panel.template-minimal .devis-table th {
+  font-weight: var(--fw-regular);
+  border-bottom: 1px solid var(--dark);
+}
+
+.preview-panel.template-minimal .devis-totaux {
+  width: 220px;
+}
+
+.preview-panel.template-minimal .devis-totaux .row.total {
+  border-top: 1px solid var(--dark);
+  font-weight: var(--fw-semibold);
+  font-size: 14px;
+}
+
+.preview-panel.template-minimal .devis-footer {
+  font-size: 10px;
+  color: var(--gray-light);
 }
 
 /* ===== Toast ===== */
