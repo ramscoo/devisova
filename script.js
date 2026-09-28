@@ -1,8 +1,9 @@
 let lignes = [
-  { desc: "Exemple : pose de carrelage", qty: 25, prix: 45 }
+  { desc: '', qty: 1, prix: 0, _pristine: true }
 ];
 let logoData = null;
 let currentId = null;
+let lastSavedSnapshot = '';
 
 // ===== Devises =====
 // Structure ouverte : ajouter une devise = ajouter une entrée ici + une <option> dans app.html.
@@ -35,18 +36,25 @@ function renderForm() {
     const row = document.createElement('div');
     row.className = 'ligne-row';
     const totalLigne = (l.qty || 0) * (l.prix || 0);
+    // Une ligne "vierge" (jamais touchée par l'utilisateur) affiche qté/prix vides avec
+    // un exemple en placeholder, même si qty:1 et prix:0 restent les vraies valeurs du
+    // state — dès que l'utilisateur saisit quelque chose sur cette ligne, l._pristine
+    // disparaît et les champs affichent leurs vraies valeurs normalement.
+    const isPristine = l._pristine === true;
+    const qtyValue = isPristine ? '' : l.qty;
+    const prixValue = isPristine ? '' : l.prix;
     row.innerHTML = `
       <div class="ligne-field ligne-field-desc">
         <span class="ligne-field-label">Description</span>
-        <input type="text" value="${l.desc}" data-i="${i}" data-field="desc" placeholder="Description" aria-label="Description de la prestation">
+        <input type="text" value="${l.desc}" data-i="${i}" data-field="desc" placeholder="Ex. Pose de carrelage" aria-label="Description de la prestation">
       </div>
       <div class="ligne-field ligne-field-qty">
         <span class="ligne-field-label">Qté</span>
-        <input type="number" value="${l.qty}" data-i="${i}" data-field="qty" min="0" aria-label="Quantité">
+        <input type="number" value="${qtyValue}" data-i="${i}" data-field="qty" min="0" placeholder="1" aria-label="Quantité">
       </div>
       <div class="ligne-field ligne-field-prix">
         <span class="ligne-field-label">Prix HT</span>
-        <input type="number" value="${l.prix}" data-i="${i}" data-field="prix" min="0" step="0.01" aria-label="Prix unitaire HT">
+        <input type="number" value="${prixValue}" data-i="${i}" data-field="prix" min="0" step="0.01" placeholder="45,00" aria-label="Prix unitaire HT">
       </div>
       <div class="ligne-field ligne-field-total">
         <span class="ligne-field-label">Total</span>
@@ -62,6 +70,7 @@ function renderForm() {
       const i = e.target.dataset.i;
       const field = e.target.dataset.field;
       lignes[i][field] = field === 'desc' ? e.target.value : parseFloat(e.target.value) || 0;
+      delete lignes[i]._pristine;
       if (field === 'qty' || field === 'prix') {
         const totalEl = e.target.closest('.ligne-row').querySelector('.ligne-total');
         if (totalEl) totalEl.textContent = fmt((lignes[i].qty || 0) * (lignes[i].prix || 0), docCurrency());
@@ -88,6 +97,7 @@ document.getElementById('logoInput').addEventListener('change', (e) => {
   reader.onload = (ev) => {
     logoData = ev.target.result;
     document.getElementById('logoLabel').textContent = "✓ Logo ajouté (cliquer pour changer)";
+    maybeSaveProfile();
     renderPreview();
   };
   reader.readAsDataURL(file);
@@ -158,6 +168,67 @@ function saveAllSaved(arr) {
   localStorage.setItem('devisio_documents', JSON.stringify(arr));
 }
 
+// ===== Profil "Mon entreprise" (mémorisé séparément des documents) =====
+function loadProfile() {
+  return JSON.parse(localStorage.getItem('devisio_profile') || 'null');
+}
+
+function saveProfile(profile) {
+  localStorage.setItem('devisio_profile', JSON.stringify(profile));
+}
+
+function collectProfile() {
+  return {
+    entName: document.getElementById('entName').value,
+    entSiret: document.getElementById('entSiret').value,
+    entAdresse: document.getElementById('entAdresse').value,
+    entTel: document.getElementById('entTel').value,
+    entEmail: document.getElementById('entEmail').value,
+    logoData: logoData,
+  };
+}
+
+function applyProfile(profile) {
+  if (!profile) return;
+  document.getElementById('entName').value = profile.entName || '';
+  document.getElementById('entSiret').value = profile.entSiret || '';
+  document.getElementById('entAdresse').value = profile.entAdresse || '';
+  document.getElementById('entTel').value = profile.entTel || '';
+  document.getElementById('entEmail').value = profile.entEmail || '';
+  logoData = profile.logoData || null;
+  document.getElementById('logoLabel').textContent = logoData ? "✓ Logo ajouté (cliquer pour changer)" : "+ Ajouter mon logo (optionnel)";
+}
+
+// On ne mémorise le profil que lorsqu'on est sur un document neuf (jamais chargé depuis
+// la liste des documents enregistrés) : modifier un ancien devis déjà enregistré ne doit
+// jamais écraser silencieusement le profil permanent.
+function maybeSaveProfile() {
+  if (currentId !== null) return;
+  saveProfile(collectProfile());
+}
+
+// ===== Protection contre la perte de données non enregistrées =====
+// collectState() génère un id aléatoire (Date.now()) tant que le document n'est pas
+// encore enregistré (currentId === null) : on l'exclut de la comparaison, sinon deux
+// appels consécutifs sans aucun changement réel seraient à tort vus comme "modifiés".
+function snapshotForComparison() {
+  const state = collectState();
+  state.id = 'snapshot';
+  return JSON.stringify(state);
+}
+
+function hasUnsavedChanges() {
+  return snapshotForComparison() !== lastSavedSnapshot;
+}
+
+function markSnapshotClean() {
+  lastSavedSnapshot = snapshotForComparison();
+}
+
+function confirmDiscard() {
+  return !hasUnsavedChanges() || confirm('Des modifications non enregistrées seront perdues. Continuer ?');
+}
+
 function nextNumero(type) {
   const all = loadAllSaved();
   const year = new Date().getFullYear();
@@ -210,7 +281,7 @@ function applyState(d) {
   document.getElementById('cliAdresse').value = d.cliAdresse || '';
   document.getElementById('tva').value = d.tva || '20';
   document.getElementById('devise').value = (d.devise && CURRENCIES[d.devise]) ? d.devise : 'EUR';
-  lignes = d.lignes && d.lignes.length ? d.lignes : [{ desc: '', qty: 1, prix: 0 }];
+  lignes = d.lignes && d.lignes.length ? d.lignes : [{ desc: '', qty: 1, prix: 0, _pristine: true }];
   logoData = d.logoData || null;
   document.getElementById('logoLabel').textContent = logoData ? "✓ Logo ajouté (cliquer pour changer)" : "+ Ajouter mon logo (optionnel)";
   document.getElementById('pNumero').textContent = d.numero;
@@ -245,12 +316,14 @@ document.getElementById('saveBtn').addEventListener('click', () => {
   refreshSavedList();
   document.getElementById('savedList').value = state.id;
   showToast(`✓ ${state.type === 'facture' ? 'Facture' : 'Devis'} enregistré : ${state.numero}`);
+  markSnapshotClean();
 });
 
 document.getElementById('newBtn').addEventListener('click', () => {
+  if (!confirmDiscard()) return;
   currentId = null;
   logoData = null;
-  lignes = [{ desc: '', qty: 1, prix: 0 }];
+  lignes = [{ desc: '', qty: 1, prix: 0, _pristine: true }];
   document.getElementById('entName').value = '';
   document.getElementById('entSiret').value = '';
   document.getElementById('entAdresse').value = '';
@@ -263,15 +336,24 @@ document.getElementById('newBtn').addEventListener('click', () => {
   document.getElementById('typeDevis').checked = true;
   document.getElementById('typeFacture').checked = false;
   document.getElementById('pNumero').textContent = nextNumero(docType());
+  applyProfile(loadProfile());
   renderForm();
   renderPreview();
+  markSnapshotClean();
 });
 
 document.getElementById('savedList').addEventListener('change', (e) => {
   if (!e.target.value) return;
+  if (!confirmDiscard()) {
+    e.target.value = currentId || '';
+    return;
+  }
   const all = loadAllSaved();
   const doc = all.find(d => d.id === e.target.value);
-  if (doc) applyState(doc);
+  if (doc) {
+    applyState(doc);
+    markSnapshotClean();
+  }
 });
 
 document.getElementById('typeDevis').addEventListener('change', () => {
@@ -290,7 +372,7 @@ document.getElementById('devise').addEventListener('change', () => {
 
 // ===== Autres écouteurs =====
 document.getElementById('addLigne').addEventListener('click', () => {
-  lignes.push({ desc: '', qty: 1, prix: 0 });
+  lignes.push({ desc: '', qty: 1, prix: 0, _pristine: true });
   renderForm();
   renderPreview();
 });
@@ -448,6 +530,10 @@ document.getElementById('whatsappBtn').addEventListener('click', async () => {
   document.getElementById(id).addEventListener('input', renderPreview);
 });
 
+['entName','entSiret','entAdresse','entTel','entEmail'].forEach(id => {
+  document.getElementById(id).addEventListener('input', maybeSaveProfile);
+});
+
 // ===== Navigation mobile (Modifier / Aperçu) =====
 const mobileLayout = document.querySelector('.layout');
 const tabEdit = document.getElementById('tabEdit');
@@ -479,5 +565,7 @@ Object.entries(mobileActionMap).forEach(([mobileId, targetId]) => {
 // ===== Init =====
 refreshSavedList();
 document.getElementById('pNumero').textContent = nextNumero(docType());
+applyProfile(loadProfile());
 renderForm();
 renderPreview();
+markSnapshotClean();
