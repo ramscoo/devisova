@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Devisio — Devis et factures pour indépendants, en 2 minutes</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+<body>
+
+<header class="topbar no-print">
+  <a href="index.html" class="logo">Devis<span>io</span></a>
+  <p class="tagline">Ton devis prêt en 2 minutes, pas en 2 heures.</p>
+</header>
+
+<div class="toolbar no-print">
+  <div class="doc-type">
+    <label><input type="radio" name="docType" value="devis" id="typeDevis" checked> Devis</label>
+    <label><input type="radio" name="docType" value="facture" id="typeFacture"> Facture</label>
+  </div>
+  <select id="savedList">
+    <option value="">— Mes documents enregistrés —</option>
+  </select>
+  <button type="button" class="btn-toolbar" id="newBtn">+ Nouveau</button>
+  <button type="button" class="btn-toolbar btn-toolbar-primary" id="saveBtn">Enregistrer</button>
+</div>
+
+<main class="layout">
+
+  <!-- ===== FORMULAIRE ===== -->
+  <section class="panel form-panel no-print">
+
+    <h2>Ton entreprise</h2>
+    <div class="grid-2">
+      <input type="text" id="entName" placeholder="Nom de l'entreprise">
+      <input type="text" id="entSiret" placeholder="SIRET">
+      <input type="text" id="entAdresse" placeholder="Adresse" class="span-2">
+      <input type="text" id="entTel" placeholder="Téléphone">
+      <input type="email" id="entEmail" placeholder="Email">
+    </div>
+    <label class="logo-upload">
+      <span id="logoLabel">+ Ajouter mon logo (optionnel)</span>
+      <input type="file" id="logoInput" accept="image/*">
+    </label>
+
+    <h2>Client</h2>
+    <div class="grid-2">
+      <input type="text" id="cliName" placeholder="Nom du client">
+      <input type="text" id="cliAdresse" placeholder="Adresse (optionnel)" class="span-2">
+    </div>
+
+    <h2>Prestations</h2>
+    <div id="lignes"></div>
+    <button type="button" class="btn-secondary" id="addLigne">+ Ajouter une ligne</button>
+
+    <h2>TVA</h2>
+    <select id="tva">
+      <option value="20">20% (taux normal)</option>
+      <option value="10">10% (rénovation &gt; 2 ans)</option>
+      <option value="5.5">5.5% (rénovation énergétique)</option>
+      <option value="0">0% (auto-entrepreneur, TVA non applicable)</option>
+    </select>
+
+    <div class="action-buttons">
+      <button type="button" class="btn-primary" id="printBtn">🖨️ Imprimer</button>
+      <button type="button" class="btn-primary" id="pdfBtn">⬇️ Télécharger en PDF</button>
+      <button type="button" class="btn-whatsapp" id="whatsappBtn">💬 Partager par WhatsApp</button>
+    </div>
+    <p class="hint">Le partage WhatsApp envoie un résumé en texte (client, montant, numéro) — pense à joindre le PDF téléchargé si besoin.</p>
+  </section>
+
+  <!-- ===== APERÇU DEVIS ===== -->
+  <section class="panel preview-panel" id="preview">
+    <div class="devis-header">
+      <div class="devis-ent-block">
+        <img id="pLogo" class="devis-logo" style="display:none;" alt="Logo">
+        <div>
+          <div class="devis-ent-name" id="pEntName">Nom de l'entreprise</div>
+          <div class="devis-ent-detail" id="pEntAdresse"></div>
+          <div class="devis-ent-detail" id="pEntSiret"></div>
+          <div class="devis-ent-detail" id="pEntContact"></div>
+        </div>
+      </div>
+      <div class="devis-title">
+        <div class="devis-title-main" id="pDocType">DEVIS</div>
+        <div class="devis-date" id="pNumero"></div>
+        <div class="devis-date" id="pDate"></div>
+      </div>
+    </div>
+
+    <div class="devis-client">
+      <div class="devis-client-label">Client</div>
+      <div id="pCliName">—</div>
+      <div id="pCliAdresse"></div>
+    </div>
+
+    <table class="devis-table">
+      <thead>
+        <tr><th>Description</th><th>Qté</th><th>Prix unit. HT</th><th>Total HT</th></tr>
+      </thead>
+      <tbody id="pLignes"></tbody>
+    </table>
+
+    <div class="devis-totaux">
+      <div class="row"><span>Total HT</span><span id="pTotalHT">0,00 €</span></div>
+      <div class="row"><span>TVA (<span id="pTvaTaux">20</span>%)</span><span id="pTotalTVA">0,00 €</span></div>
+      <div class="row total"><span>Total TTC</span><span id="pTotalTTC">0,00 €</span></div>
+    </div>
+
+    <div class="devis-footer">Devis généré avec Devisio</div>
+  </section>
+
+</main>
+
+<script src="script.js"></script>
+</body>
+</html>
