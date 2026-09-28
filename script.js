@@ -4,8 +4,27 @@ let lignes = [
 let logoData = null;
 let currentId = null;
 
-function fmt(n) {
-  return n.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+// ===== Devises =====
+// Structure ouverte : ajouter une devise = ajouter une entrée ici + une <option> dans app.html.
+const CURRENCIES = {
+  EUR: { locale: 'fr-FR' },
+  USD: { locale: 'en-US' },
+  XOF: { locale: 'fr-FR' },
+  GBP: { locale: 'en-GB' },
+};
+
+function docCurrency() {
+  const el = document.getElementById('devise');
+  return (el && CURRENCIES[el.value]) ? el.value : 'EUR';
+}
+
+function fmt(n, currency) {
+  const code = CURRENCIES[currency] ? currency : 'EUR';
+  try {
+    return new Intl.NumberFormat(CURRENCIES[code].locale, { style: 'currency', currency: code }).format(n || 0);
+  } catch (e) {
+    return (n || 0).toFixed(2) + ' ' + code;
+  }
 }
 
 // ===== Lignes de prestation =====
@@ -15,10 +34,24 @@ function renderForm() {
   lignes.forEach((l, i) => {
     const row = document.createElement('div');
     row.className = 'ligne-row';
+    const totalLigne = (l.qty || 0) * (l.prix || 0);
     row.innerHTML = `
-      <input type="text" value="${l.desc}" data-i="${i}" data-field="desc" placeholder="Description" aria-label="Description de la prestation">
-      <input type="number" value="${l.qty}" data-i="${i}" data-field="qty" min="0" aria-label="Quantité">
-      <input type="number" value="${l.prix}" data-i="${i}" data-field="prix" min="0" step="0.01" aria-label="Prix unitaire HT">
+      <div class="ligne-field ligne-field-desc">
+        <span class="ligne-field-label">Description</span>
+        <input type="text" value="${l.desc}" data-i="${i}" data-field="desc" placeholder="Description" aria-label="Description de la prestation">
+      </div>
+      <div class="ligne-field ligne-field-qty">
+        <span class="ligne-field-label">Qté</span>
+        <input type="number" value="${l.qty}" data-i="${i}" data-field="qty" min="0" aria-label="Quantité">
+      </div>
+      <div class="ligne-field ligne-field-prix">
+        <span class="ligne-field-label">Prix HT</span>
+        <input type="number" value="${l.prix}" data-i="${i}" data-field="prix" min="0" step="0.01" aria-label="Prix unitaire HT">
+      </div>
+      <div class="ligne-field ligne-field-total">
+        <span class="ligne-field-label">Total</span>
+        <span class="ligne-total">${fmt(totalLigne, docCurrency())}</span>
+      </div>
       <button type="button" class="remove-ligne" data-i="${i}" aria-label="Supprimer cette ligne">×</button>
     `;
     container.appendChild(row);
@@ -29,6 +62,10 @@ function renderForm() {
       const i = e.target.dataset.i;
       const field = e.target.dataset.field;
       lignes[i][field] = field === 'desc' ? e.target.value : parseFloat(e.target.value) || 0;
+      if (field === 'qty' || field === 'prix') {
+        const totalEl = e.target.closest('.ligne-row').querySelector('.ligne-total');
+        if (totalEl) totalEl.textContent = fmt((lignes[i].qty || 0) * (lignes[i].prix || 0), docCurrency());
+      }
       renderPreview();
     });
   });
@@ -84,6 +121,7 @@ function renderPreview() {
   document.getElementById('pDocType').textContent = docType() === 'facture' ? 'FACTURE' : 'DEVIS';
   document.getElementById('pDate').textContent = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
 
+  const currency = docCurrency();
   const tbody = document.getElementById('pLignes');
   tbody.innerHTML = '';
   let totalHT = 0;
@@ -91,7 +129,7 @@ function renderPreview() {
     const totalLigne = (l.qty || 0) * (l.prix || 0);
     totalHT += totalLigne;
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${l.desc || '—'}</td><td>${l.qty || 0}</td><td>${fmt(l.prix || 0)}</td><td>${fmt(totalLigne)}</td>`;
+    tr.innerHTML = `<td>${l.desc || '—'}</td><td>${l.qty || 0}</td><td>${fmt(l.prix || 0, currency)}</td><td>${fmt(totalLigne, currency)}</td>`;
     tbody.appendChild(tr);
   });
 
@@ -100,9 +138,15 @@ function renderPreview() {
   const totalTTC = totalHT + totalTVA;
 
   document.getElementById('pTvaTaux').textContent = tvaTaux;
-  document.getElementById('pTotalHT').textContent = fmt(totalHT);
-  document.getElementById('pTotalTVA').textContent = fmt(totalTVA);
-  document.getElementById('pTotalTTC').textContent = fmt(totalTTC);
+  document.getElementById('pTotalHT').textContent = fmt(totalHT, currency);
+  document.getElementById('pTotalTVA').textContent = fmt(totalTVA, currency);
+  document.getElementById('pTotalTTC').textContent = fmt(totalTTC, currency);
+
+  const mNumero = document.getElementById('mNumero');
+  if (mNumero) mNumero.textContent = document.getElementById('pNumero').textContent;
+
+  const footer = document.getElementById('pFooter');
+  if (footer) footer.textContent = `${docType() === 'facture' ? 'Facture générée' : 'Devis généré'} avec Devisio`;
 }
 
 // ===== Sauvegarde locale =====
@@ -147,6 +191,7 @@ function collectState() {
     cliName: document.getElementById('cliName').value,
     cliAdresse: document.getElementById('cliAdresse').value,
     tva: document.getElementById('tva').value,
+    devise: docCurrency(),
     lignes: lignes,
     logoData: logoData,
   };
@@ -164,6 +209,7 @@ function applyState(d) {
   document.getElementById('cliName').value = d.cliName || '';
   document.getElementById('cliAdresse').value = d.cliAdresse || '';
   document.getElementById('tva').value = d.tva || '20';
+  document.getElementById('devise').value = (d.devise && CURRENCIES[d.devise]) ? d.devise : 'EUR';
   lignes = d.lignes && d.lignes.length ? d.lignes : [{ desc: '', qty: 1, prix: 0 }];
   logoData = d.logoData || null;
   document.getElementById('logoLabel').textContent = logoData ? "✓ Logo ajouté (cliquer pour changer)" : "+ Ajouter mon logo (optionnel)";
@@ -237,6 +283,11 @@ document.getElementById('typeFacture').addEventListener('change', () => {
   renderPreview();
 });
 
+document.getElementById('devise').addEventListener('change', () => {
+  renderForm();
+  renderPreview();
+});
+
 // ===== Autres écouteurs =====
 document.getElementById('addLigne').addEventListener('click', () => {
   lignes.push({ desc: '', qty: 1, prix: 0 });
@@ -244,32 +295,185 @@ document.getElementById('addLigne').addEventListener('click', () => {
   renderPreview();
 });
 
-document.getElementById('printBtn').addEventListener('click', () => window.print());
+// Sur mobile, l'aperçu peut être en position hors-écran (onglet "Modifier" actif) via CSS
+// de classe. html2canvas ne capture pas ça de façon fiable, même en changeant la classe
+// juste avant. On neutralise donc temporairement CE positionnement par des styles inline
+// !important (qui gagnent sur n'importe quelle règle de classe, de façon garantie et
+// immédiate), le temps de la capture, puis on restaure l'état normal juste après.
+function forcePreviewCapturable() {
+  const el = document.getElementById('preview');
+  const props = ['position', 'left', 'top', 'width', 'display', 'margin'];
+  const saved = props.map(p => [p, el.style.getPropertyValue(p), el.style.getPropertyPriority(p)]);
+  el.style.setProperty('position', 'static', 'important');
+  el.style.setProperty('left', 'auto', 'important');
+  el.style.setProperty('top', 'auto', 'important');
+  el.style.setProperty('width', 'auto', 'important');
+  el.style.setProperty('display', 'block', 'important');
+  el.style.setProperty('margin', '0', 'important');
+  return function restore() {
+    saved.forEach(([p, value, priority]) => {
+      if (value) el.style.setProperty(p, value, priority);
+      else el.style.removeProperty(p);
+    });
+  };
+}
 
-document.getElementById('pdfBtn').addEventListener('click', () => {
-  const numero = document.getElementById('pNumero').textContent || 'document';
-  const element = document.getElementById('preview');
-  html2pdf().set({
+function pdfOptions(numero) {
+  return {
     margin: 10,
     filename: `${numero}.pdf`,
     html2canvas: { scale: 2 },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-  }).from(element).save();
+  };
+}
+
+// La pagination automatique de html2pdf peut laisser un reliquat de quelques millimètres
+// sur une dernière page (fin de l'ombre/bordure du cadre, sans contenu réel). On lit la
+// hauteur réellement dessinée sur cette dernière page (directement dans le contenu du PDF
+// généré, sans recalcul approximatif) et on la supprime seulement si elle est vraiment
+// minime — une vraie page 2 avec du contenu reste toujours intacte.
+function trimEmptyTrailingPage(pdf) {
+  const totalPages = pdf.internal.getNumberOfPages();
+  if (totalPages < 2) return;
+  const lastPageOps = pdf.internal.pages[totalPages];
+  if (!Array.isArray(lastPageOps)) return;
+  const text = lastPageOps.join('\n');
+  const cmMatches = [...text.matchAll(/([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+cm/g)];
+  if (!cmMatches.length) return;
+  const maxHeightPt = Math.max(...cmMatches.map(m => Math.abs(parseFloat(m[4]))));
+  const maxHeightMM = maxHeightPt * 0.352778;
+  if (maxHeightMM < 15) {
+    pdf.deletePage(totalPages);
+  }
+}
+
+// Si la page est scrollée (typique d'un devis long, une fois qu'on a rempli plusieurs
+// lignes), html2canvas capture un contenu décalé/incomplet — c'est la cause du "PDF coupé".
+// On remet le défilement à zéro pendant la capture, puis on restaure la position de
+// l'utilisateur juste après.
+function resetScrollForCapture() {
+  const x = window.scrollX, y = window.scrollY;
+  window.scrollTo(0, 0);
+  return function restoreScroll() { window.scrollTo(x, y); };
+}
+
+function waitTwoFrames() {
+  return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+}
+
+document.getElementById('printBtn').addEventListener('click', async () => {
+  setMobileView('preview');
+  const restoreScroll = resetScrollForCapture();
+  const restorePreview = forcePreviewCapturable();
+  await waitTwoFrames();
+  // window.print() ne bloque pas forcément l'exécution JS (variable selon navigateur) :
+  // on restaure au moment fiable où l'impression est réellement terminée, avec un filet
+  // de sécurité si "afterprint" ne se déclenche pas.
+  let done = false;
+  const finish = () => { if (done) return; done = true; restorePreview(); restoreScroll(); window.removeEventListener('afterprint', finish); };
+  window.addEventListener('afterprint', finish);
+  setTimeout(finish, 5000);
+  window.print();
 });
 
-document.getElementById('whatsappBtn').addEventListener('click', () => {
-  const numero = document.getElementById('pNumero').textContent || '';
+document.getElementById('pdfBtn').addEventListener('click', async () => {
+  setMobileView('preview');
+  const numero = document.getElementById('pNumero').textContent || 'document';
+  const element = document.getElementById('preview');
+  const restoreScroll = resetScrollForCapture();
+  const restorePreview = forcePreviewCapturable();
+  await waitTwoFrames();
+  try {
+    await html2pdf().set(pdfOptions(numero)).from(element).toPdf().get('pdf').then(trimEmptyTrailingPage).save();
+  } finally {
+    restorePreview();
+    restoreScroll();
+  }
+});
+
+document.getElementById('whatsappBtn').addEventListener('click', async () => {
+  const numero = document.getElementById('pNumero').textContent || 'document';
   const type = docType() === 'facture' ? 'Facture' : 'Devis';
   const client = document.getElementById('cliName').value || 'client';
   const totalTTC = document.getElementById('pTotalTTC').textContent;
   const entName = document.getElementById('entName').value || '';
   const message = `Bonjour ${client}, voici votre ${type.toLowerCase()} ${numero}${entName ? ' de ' + entName : ''} : total ${totalTTC}. N'hésitez pas si vous avez des questions !`;
-  const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
-  window.open(url, '_blank');
+
+  const waUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+
+  // Le partage de fichier (avec le PDF) n'est possible que via l'API Web Share du
+  // navigateur (menu de partage natif) — un lien wa.me ne peut transporter que du texte.
+  if (!navigator.share || !navigator.canShare) {
+    window.open(waUrl, '_blank');
+    return;
+  }
+
+  // On ouvre tout de suite un onglet vide, PENDANT le geste utilisateur (avant tout await) :
+  // si on doit finalement retomber sur le lien texte après la génération asynchrone
+  // du PDF, on redirige CET onglet déjà ouvert plutôt que d'en ouvrir un nouveau —
+  // sinon le navigateur bloque silencieusement le window.open() tardif.
+  const fallbackWindow = window.open('', '_blank');
+  const shareTextOnly = () => {
+    if (fallbackWindow) fallbackWindow.location.href = waUrl;
+    else window.open(waUrl, '_blank');
+  };
+
+  setMobileView('preview');
+  const element = document.getElementById('preview');
+  const restoreScroll = resetScrollForCapture();
+  const restore = forcePreviewCapturable();
+  await waitTwoFrames();
+  try {
+    const blob = await html2pdf().set(pdfOptions(numero)).from(element).toPdf().get('pdf').then(pdf => { trimEmptyTrailingPage(pdf); return pdf; }).outputPdf('blob');
+    restore();
+    restoreScroll();
+
+    const file = new File([blob], `${numero}.pdf`, { type: 'application/pdf' });
+
+    if (navigator.canShare({ files: [file] })) {
+      if (fallbackWindow) fallbackWindow.close();
+      await navigator.share({ files: [file], title: `${type} ${numero}`, text: message });
+    } else {
+      shareTextOnly();
+    }
+  } catch (err) {
+    restore();
+    restoreScroll();
+    if (err && err.name === 'AbortError') { if (fallbackWindow) fallbackWindow.close(); return; }
+    shareTextOnly();
+  }
 });
 
 ['entName','entSiret','entAdresse','entTel','entEmail','cliName','cliAdresse','tva'].forEach(id => {
   document.getElementById(id).addEventListener('input', renderPreview);
+});
+
+// ===== Navigation mobile (Modifier / Aperçu) =====
+const mobileLayout = document.querySelector('.layout');
+const tabEdit = document.getElementById('tabEdit');
+const tabPreview = document.getElementById('tabPreview');
+
+function setMobileView(view) {
+  if (!mobileLayout || !tabEdit || !tabPreview) return;
+  const isPreview = view === 'preview';
+  mobileLayout.classList.toggle('show-preview', isPreview);
+  tabEdit.classList.toggle('active', !isPreview);
+  tabPreview.classList.toggle('active', isPreview);
+  tabEdit.setAttribute('aria-selected', String(!isPreview));
+  tabPreview.setAttribute('aria-selected', String(isPreview));
+}
+
+if (tabEdit && tabPreview) {
+  tabEdit.addEventListener('click', () => setMobileView('edit'));
+  tabPreview.addEventListener('click', () => setMobileView('preview'));
+}
+
+// ===== Barre d'actions mobile (relaie vers les boutons existants) =====
+const mobileActionMap = { mSaveBtn: 'saveBtn', mPrintBtn: 'printBtn', mPdfBtn: 'pdfBtn', mWhatsappBtn: 'whatsappBtn' };
+Object.entries(mobileActionMap).forEach(([mobileId, targetId]) => {
+  const btn = document.getElementById(mobileId);
+  const target = document.getElementById(targetId);
+  if (btn && target) btn.addEventListener('click', () => target.click());
 });
 
 // ===== Init =====

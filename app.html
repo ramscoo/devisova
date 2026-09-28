@@ -7,8 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="tokens.css?v=2">
-<link rel="stylesheet" href="style.css?v=2">
+<link rel="stylesheet" href="tokens.css?v=16">
+<link rel="stylesheet" href="style.css?v=16">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
@@ -16,6 +16,7 @@
 <header class="topbar no-print">
   <a href="index.html" class="logo">Devis<span>io</span></a>
   <p class="tagline">Ton devis prêt en 2 minutes, pas en 2 heures.</p>
+  <p class="topbar-doc" id="mNumero"></p>
 </header>
 
 <div class="toolbar no-print">
@@ -27,7 +28,15 @@
     <option value="">— Mes documents enregistrés —</option>
   </select>
   <button type="button" class="btn-toolbar" id="newBtn">+ Nouveau</button>
-  <button type="button" class="btn-toolbar btn-toolbar-primary" id="saveBtn">Enregistrer</button>
+  <button type="button" class="btn-toolbar btn-toolbar-primary" id="saveBtn">
+    <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
+    Enregistrer
+  </button>
+</div>
+
+<div class="mobile-tabs no-print" role="tablist" aria-label="Navigation devis">
+  <button type="button" class="mobile-tab active" id="tabEdit" role="tab" aria-selected="true">Modifier</button>
+  <button type="button" class="mobile-tab" id="tabPreview" role="tab" aria-selected="false">Aperçu</button>
 </div>
 
 <main class="layout">
@@ -77,28 +86,48 @@
 
     <h2>Prestations</h2>
     <div class="lignes-head" aria-hidden="true">
-      <span>Description</span><span>Qté</span><span>Prix HT</span><span></span>
+      <span>Description</span><span>Qté</span><span>Prix HT</span><span>Total</span><span></span>
     </div>
     <div id="lignes"></div>
     <button type="button" class="btn-secondary" id="addLigne">+ Ajouter une ligne</button>
 
-    <h2>TVA</h2>
-    <div class="field">
-      <label for="tva" class="sr-only">Taux de TVA</label>
-      <select id="tva">
-        <option value="20">20% (taux normal)</option>
-        <option value="10">10% (rénovation &gt; 2 ans)</option>
-        <option value="5.5">5.5% (rénovation énergétique)</option>
-        <option value="0">0% (auto-entrepreneur, TVA non applicable)</option>
-      </select>
+    <h2>TVA &amp; devise</h2>
+    <div class="grid-2">
+      <div class="field">
+        <label for="tva">Taux de TVA</label>
+        <select id="tva">
+          <option value="20">20% (taux normal)</option>
+          <option value="10">10% (rénovation &gt; 2 ans)</option>
+          <option value="5.5">5.5% (rénovation énergétique)</option>
+          <option value="0">0% (auto-entrepreneur, TVA non applicable)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="devise">Devise</label>
+        <select id="devise">
+          <option value="EUR" selected>EUR — €</option>
+          <option value="USD">USD — $</option>
+          <option value="XOF">XOF — FCFA</option>
+          <option value="GBP">GBP — £</option>
+        </select>
+      </div>
     </div>
 
     <div class="action-buttons">
-      <button type="button" class="btn-primary" id="printBtn">🖨️ Imprimer</button>
-      <button type="button" class="btn-primary" id="pdfBtn">⬇️ Télécharger en PDF</button>
-      <button type="button" class="btn-whatsapp" id="whatsappBtn">💬 Partager par WhatsApp</button>
+      <button type="button" class="btn-primary" id="printBtn">
+        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+        Imprimer
+      </button>
+      <button type="button" class="btn-primary" id="pdfBtn">
+        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Télécharger en PDF
+      </button>
+      <button type="button" class="btn-whatsapp" id="whatsappBtn">
+        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+        Partager par WhatsApp
+      </button>
     </div>
-    <p class="hint">Le partage WhatsApp envoie un résumé en texte (client, montant, numéro) — pense à joindre le PDF téléchargé si besoin.</p>
+    <p class="hint">Sur mobile, "Partager par WhatsApp" propose le PDF en pièce jointe via le menu de partage. Si ton navigateur ne le permet pas, seul un résumé en texte est envoyé — pense alors à joindre le PDF téléchargé.</p>
   </section>
 
   <!-- ===== APERÇU DEVIS ===== -->
@@ -139,11 +168,30 @@
       <div class="row total"><span>Total TTC</span><span id="pTotalTTC">0,00 €</span></div>
     </div>
 
-    <div class="devis-footer">Devis généré avec Devisio</div>
+    <div class="devis-footer" id="pFooter">Devis généré avec Devisio</div>
   </section>
 
 </main>
 
-<script src="script.js?v=2"></script>
+<nav class="mobile-actionbar no-print" aria-label="Actions rapides">
+  <button type="button" class="mobile-action" id="mSaveBtn" aria-label="Enregistrer">
+    <svg class="mobile-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
+    <span>Enregistrer</span>
+  </button>
+  <button type="button" class="mobile-action" id="mPrintBtn" aria-label="Imprimer">
+    <svg class="mobile-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+    <span>Imprimer</span>
+  </button>
+  <button type="button" class="mobile-action" id="mPdfBtn" aria-label="Télécharger en PDF">
+    <svg class="mobile-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    <span>PDF</span>
+  </button>
+  <button type="button" class="mobile-action" id="mWhatsappBtn" aria-label="Partager par WhatsApp">
+    <svg class="mobile-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+    <span>Partager</span>
+  </button>
+</nav>
+
+<script src="script.js?v=16"></script>
 </body>
 </html>

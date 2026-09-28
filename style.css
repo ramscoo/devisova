@@ -29,6 +29,18 @@ body {
   margin-top: 2px;
 }
 
+.topbar-doc { display: none; }
+
+/* ===== Onglets mobiles (Modifier / Aperçu) ===== */
+.mobile-tabs {
+  display: none;
+}
+
+/* ===== Barre d'actions mobile ===== */
+.mobile-actionbar {
+  display: none;
+}
+
 .layout {
   max-width: 1200px;
   margin: 24px auto;
@@ -38,7 +50,7 @@ body {
   gap: 20px;
 }
 
-@media (min-width: 900px) {
+@media (min-width: 768px) {
   .layout { grid-template-columns: 1fr 1fr; align-items: start; }
 }
 
@@ -105,7 +117,7 @@ input::placeholder { color: var(--gray-light); }
 
 .lignes-head {
   display: grid;
-  grid-template-columns: 1fr 60px 90px 30px;
+  grid-template-columns: 1fr 55px 85px 85px 28px;
   gap: 8px;
   padding: 0 12px;
   margin-bottom: 6px;
@@ -118,9 +130,21 @@ input::placeholder { color: var(--gray-light); }
 
 .ligne-row {
   display: grid;
-  grid-template-columns: 1fr 60px 90px 30px;
+  grid-template-columns: 1fr 55px 85px 85px 28px;
   gap: 8px;
+  align-items: center;
   margin-bottom: 8px;
+}
+
+/* Sur desktop, les wrappers de champ s'effacent pour laisser la grille de .ligne-row s'appliquer directement aux inputs */
+.ligne-field { display: contents; }
+.ligne-field-label { display: none; }
+
+.ligne-total {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--dark);
+  text-align: right;
 }
 
 .btn-secondary {
@@ -137,6 +161,10 @@ input::placeholder { color: var(--gray-light); }
 }
 
 .btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   background: var(--blue);
   color: white;
   border: none;
@@ -148,6 +176,12 @@ input::placeholder { color: var(--gray-light); }
   width: 100%;
 }
 
+.btn-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
 .action-buttons {
   display: flex;
   flex-direction: column;
@@ -156,6 +190,10 @@ input::placeholder { color: var(--gray-light); }
 }
 
 .btn-whatsapp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   background: #25D366;
   color: white;
   border: none;
@@ -175,7 +213,7 @@ input::placeholder { color: var(--gray-light); }
   font-size: 18px;
   line-height: 1;
   width: 30px;
-  height: 100%;
+  height: 30px;
   cursor: pointer;
   transition: background-color var(--transition-fast);
 }
@@ -218,6 +256,9 @@ input::placeholder { color: var(--gray-light); }
 }
 
 .btn-toolbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: white;
   border: 1px solid var(--border);
   color: var(--dark);
@@ -371,6 +412,184 @@ input::placeholder { color: var(--gray-light); }
 .toast.show {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
+}
+
+/* ===================================================
+   MOBILE (< 768px) — navigation par onglets, barre
+   d'actions fixe, ajustements de confort tactile
+   =================================================== */
+@media (max-width: 767px) {
+  .topbar { padding: 14px 20px; }
+  .toolbar { padding: 10px 16px 0; }
+
+  /* Les actions Imprimer/PDF/WhatsApp du formulaire desktop, et le bouton Enregistrer
+     de la barre d'outils, sont remplacés par la barre d'actions mobile fixe en bas —
+     on évite le doublon. Les autres contrôles de la toolbar (Devis/Facture, documents
+     enregistrés, Nouveau) restent visibles, ils n'existent pas dans la barre mobile. */
+  .action-buttons, .hint, #saveBtn { display: none; }
+
+  .topbar-doc {
+    display: block;
+    font-size: 12px;
+    font-weight: var(--fw-semibold);
+    color: var(--blue);
+    margin-top: 2px;
+    min-height: 15px;
+  }
+
+  .mobile-tabs {
+    display: flex;
+    gap: 4px;
+    max-width: 1200px;
+    margin: 12px auto 0;
+    padding: 0 16px;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: var(--bg);
+    padding-top: 8px;
+    padding-bottom: 4px;
+  }
+
+  .mobile-tab {
+    flex: 1;
+    background: white;
+    border: 1px solid var(--border);
+    color: var(--gray);
+    padding: 10px;
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-semibold);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+  }
+
+  .mobile-tab.active {
+    background: var(--blue);
+    border-color: var(--blue);
+    color: white;
+  }
+
+  .layout { padding: 0 16px; margin: 12px auto 0; gap: 16px; }
+  .panel { padding: 18px; }
+
+  /* Un seul panneau visible à la fois, piloté par les onglets */
+  .form-panel { display: block; }
+
+  /* L'aperçu n'est jamais mis en display:none : html2canvas (utilisé pour le PDF et le
+     partage) ne sait pas capturer correctement un élément display:none, même une fois
+     redevenu visible. On le déplace hors écran à la place — il reste "affiché", donc
+     toujours capturable, tout en étant invisible pour l'utilisateur sur l'onglet Modifier. */
+  .preview-panel {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    width: calc(100vw - 32px);
+  }
+  .layout.show-preview .form-panel { display: none; }
+  .layout.show-preview .preview-panel {
+    position: static;
+    width: auto;
+  }
+
+  /* Confort tactile : 16px empêche le zoom auto iOS au focus, 44px = cible tactile recommandée */
+  input, select {
+    font-size: 16px;
+    min-height: 44px;
+  }
+
+  .btn-primary, .btn-whatsapp, .btn-secondary, .btn-toolbar, .btn-toolbar-primary {
+    min-height: 44px;
+  }
+
+  /* Barre d'actions fixe en bas, au-dessus des safe areas iPhone */
+  body { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+
+  .mobile-actionbar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: white;
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -4px 16px rgba(20, 33, 61, 0.08);
+    padding: 8px 6px calc(8px + env(safe-area-inset-bottom));
+    z-index: 30;
+  }
+
+  .mobile-action {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    background: none;
+    border: none;
+    color: var(--dark);
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+    min-height: 44px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: background-color var(--transition-fast);
+  }
+
+  .mobile-action:hover, .mobile-action:active { background: var(--bg); }
+  .mobile-action-icon { width: 20px; height: 20px; }
+}
+
+/* ===================================================
+   PHONE (< 600px) — lignes de prestation en cartes
+   =================================================== */
+@media (max-width: 599px) {
+  .lignes-head { display: none; }
+
+  .ligne-row {
+    display: block;
+    position: relative;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 14px 44px 14px 14px;
+    margin-bottom: 10px;
+  }
+
+  .ligne-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 10px;
+  }
+
+  .ligne-field-total { margin-bottom: 0; }
+
+  .ligne-field-label {
+    display: block;
+    font-size: 11px;
+    font-weight: var(--fw-medium);
+    color: var(--gray);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  .ligne-total { font-size: var(--fs-md); text-align: left; }
+
+  .remove-ligne {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 32px;
+    height: 32px;
+  }
+
+  .panel { padding: 16px; }
+  .devis-totaux { width: 100%; max-width: 260px; }
+
+  .devis-header { flex-wrap: wrap; gap: 12px; }
+  .devis-title { text-align: left; width: 100%; }
+  .devis-title-main, .devis-date { text-align: left; }
 }
 
 /* ===== Impression ===== */
