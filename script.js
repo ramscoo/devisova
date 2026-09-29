@@ -3,6 +3,7 @@ let lignes = [
 ];
 let logoData = null;
 let currentId = null;
+let currentDocDate = null;
 let lastSavedSnapshot = '';
 
 // ===== Devises =====
@@ -223,6 +224,54 @@ function maybeSaveProfile() {
   saveProfile(collectProfile());
 }
 
+// ===== Clients enregistrés (indépendants des documents) =====
+function loadClients() {
+  return JSON.parse(localStorage.getItem('devisio_clients') || '[]');
+}
+
+function saveClients(arr) {
+  localStorage.setItem('devisio_clients', JSON.stringify(arr));
+}
+
+function refreshClientPicker() {
+  const select = document.getElementById('clientPicker');
+  const current = select.value;
+  const clients = loadClients();
+  select.innerHTML = '<option value="">— Nouveau client —</option>';
+  clients.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = c.nom;
+    select.appendChild(opt);
+  });
+  select.value = clients.some(c => c.id === current) ? current : '';
+}
+
+document.getElementById('clientPicker').addEventListener('change', (e) => {
+  if (!e.target.value) return;
+  const client = loadClients().find(c => c.id === e.target.value);
+  if (!client) return;
+  // Injecte les infos du client dans le devis courant : le devis reste ensuite libre
+  // d'être modifié sans jamais toucher à la fiche client enregistrée.
+  document.getElementById('cliName').value = client.nom || '';
+  document.getElementById('cliAdresse').value = client.adresse || '';
+  renderPreview();
+});
+
+document.getElementById('saveClientBtn').addEventListener('click', () => {
+  const nom = document.getElementById('cliName').value.trim();
+  if (!nom) {
+    showToast('Renseigne un nom de client avant de l\'enregistrer.');
+    return;
+  }
+  const adresse = document.getElementById('cliAdresse').value;
+  const clients = loadClients();
+  clients.push({ id: Date.now().toString(), nom, adresse });
+  saveClients(clients);
+  refreshClientPicker();
+  showToast(`✓ Client enregistré : ${nom}`);
+});
+
 // ===== Protection contre la perte de données non enregistrées =====
 // collectState() génère un id aléatoire (Date.now()) tant que le document n'est pas
 // encore enregistré (currentId === null) : on l'exclut de la comparaison, sinon deux
@@ -265,11 +314,64 @@ function refreshSavedList() {
   });
 }
 
+function docTotalTTC(d) {
+  const totalHT = (d.lignes || []).reduce((sum, l) => sum + (l.qty || 0) * (l.prix || 0), 0);
+  const tva = parseFloat(d.tva) || 0;
+  return totalHT * (1 + tva / 100);
+}
+
+function renderHistory() {
+  const container = document.getElementById('historyList');
+  const all = loadAllSaved();
+  container.innerHTML = '';
+  if (!all.length) {
+    container.innerHTML = '<p class="history-empty">Aucun document enregistré pour l\'instant.</p>';
+    return;
+  }
+  all.slice().reverse().forEach(d => {
+    const dateLabel = d.date ? new Date(d.date).toLocaleDateString('fr-FR') : '—';
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'history-item';
+    row.dataset.id = d.id;
+    row.innerHTML = `
+      <div class="history-main">
+        <span class="history-numero">${d.numero}</span>
+        <span class="history-type">${d.type === 'facture' ? 'Facture' : 'Devis'}</span>
+      </div>
+      <div class="history-client">${d.cliName || 'Sans client'}</div>
+      <div class="history-meta">
+        <span>${dateLabel}</span>
+        <span class="history-total">${fmt(docTotalTTC(d), d.devise || 'EUR')}</span>
+      </div>
+    `;
+    container.appendChild(row);
+  });
+  container.querySelectorAll('.history-item').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (!confirmDiscard()) return;
+      const doc = loadAllSaved().find(x => x.id === btn.dataset.id);
+      if (!doc) return;
+      applyState(doc);
+      document.getElementById('savedList').value = doc.id;
+      markSnapshotClean();
+    });
+  });
+}
+
+// Point d'entrée unique à appeler chaque fois que la liste des documents change
+// (sauvegarde, duplication...) pour garder la liste déroulante et l'historique synchronisés.
+function refreshDocumentsUI() {
+  refreshSavedList();
+  renderHistory();
+}
+
 function collectState() {
   return {
     id: currentId || (Date.now().toString()),
     type: docType(),
     numero: document.getElementById('pNumero').textContent || nextNumero(docType()),
+    date: currentDocDate || new Date().toISOString(),
     entName: document.getElementById('entName').value,
     entSiret: document.getElementById('entSiret').value,
     entAdresse: document.getElementById('entAdresse').value,
@@ -287,6 +389,7 @@ function collectState() {
 
 function applyState(d) {
   currentId = d.id;
+  currentDocDate = d.date || new Date().toISOString();
   document.getElementById('typeDevis').checked = d.type !== 'facture';
   document.getElementById('typeFacture').checked = d.type === 'facture';
   document.getElementById('entName').value = d.entName || '';
@@ -296,6 +399,7 @@ function applyState(d) {
   document.getElementById('entEmail').value = d.entEmail || '';
   document.getElementById('cliName').value = d.cliName || '';
   document.getElementById('cliAdresse').value = d.cliAdresse || '';
+  document.getElementById('clientPicker').value = '';
   document.getElementById('tva').value = d.tva || '20';
   document.getElementById('devise').value = (d.devise && CURRENCIES[d.devise]) ? d.devise : 'EUR';
   const tpl = (d.template && TEMPLATES.includes(d.template)) ? d.template : 'classic';
@@ -328,11 +432,12 @@ document.getElementById('saveBtn').addEventListener('click', () => {
   }
   const state = collectState();
   currentId = state.id;
+  currentDocDate = state.date;
   const all = loadAllSaved();
   const idx = all.findIndex(d => d.id === state.id);
   if (idx >= 0) all[idx] = state; else all.push(state);
   saveAllSaved(all);
-  refreshSavedList();
+  refreshDocumentsUI();
   document.getElementById('savedList').value = state.id;
   showToast(`✓ ${state.type === 'facture' ? 'Facture' : 'Devis'} enregistré : ${state.numero}`);
   markSnapshotClean();
@@ -341,6 +446,7 @@ document.getElementById('saveBtn').addEventListener('click', () => {
 document.getElementById('newBtn').addEventListener('click', () => {
   if (!confirmDiscard()) return;
   currentId = null;
+  currentDocDate = null;
   logoData = null;
   lignes = [{ desc: '', qty: 1, prix: 0, _pristine: true }];
   document.getElementById('entName').value = '';
@@ -350,6 +456,7 @@ document.getElementById('newBtn').addEventListener('click', () => {
   document.getElementById('entEmail').value = '';
   document.getElementById('cliName').value = '';
   document.getElementById('cliAdresse').value = '';
+  document.getElementById('clientPicker').value = '';
   document.getElementById('logoLabel').textContent = "+ Ajouter mon logo (optionnel)";
   document.getElementById('savedList').value = '';
   document.getElementById('typeDevis').checked = true;
@@ -359,6 +466,31 @@ document.getElementById('newBtn').addEventListener('click', () => {
   renderForm();
   renderPreview();
   markSnapshotClean();
+});
+
+document.getElementById('duplicateBtn').addEventListener('click', () => {
+  const numero = document.getElementById('pNumero').textContent;
+  if (!numero) {
+    showToast('Renseigne ou enregistre d\'abord un document à dupliquer.');
+    return;
+  }
+  const source = collectState();
+  const duplicate = Object.assign({}, source, {
+    id: Date.now().toString(),
+    numero: nextNumero(source.type),
+    date: new Date().toISOString(),
+  });
+  const all = loadAllSaved();
+  all.push(duplicate);
+  saveAllSaved(all);
+  currentId = duplicate.id;
+  currentDocDate = duplicate.date;
+  document.getElementById('pNumero').textContent = duplicate.numero;
+  refreshDocumentsUI();
+  document.getElementById('savedList').value = duplicate.id;
+  renderPreview();
+  markSnapshotClean();
+  showToast(`✓ Document dupliqué : ${duplicate.numero}`);
 });
 
 document.getElementById('savedList').addEventListener('change', (e) => {
@@ -586,7 +718,8 @@ Object.entries(mobileActionMap).forEach(([mobileId, targetId]) => {
 });
 
 // ===== Init =====
-refreshSavedList();
+refreshDocumentsUI();
+refreshClientPicker();
 document.getElementById('pNumero').textContent = nextNumero(docType());
 applyProfile(loadProfile());
 renderForm();

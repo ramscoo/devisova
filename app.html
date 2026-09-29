@@ -7,8 +7,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lora:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="tokens.css?v=21">
-<link rel="stylesheet" href="style.css?v=21">
+<link rel="stylesheet" href="tokens.css?v=23">
+<link rel="stylesheet" href="style.css?v=23">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
@@ -28,6 +28,7 @@
     <option value="">— Mes documents enregistrés —</option>
   </select>
   <button type="button" class="btn-toolbar" id="newBtn">+ Nouveau</button>
+  <button type="button" class="btn-toolbar" id="duplicateBtn">Dupliquer</button>
   <button type="button" class="btn-toolbar btn-toolbar-primary" id="saveBtn">
     <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
     Enregistrer
@@ -73,6 +74,12 @@
     </label>
 
     <h2>Client</h2>
+    <div class="field">
+      <label for="clientPicker">Client enregistré</label>
+      <select id="clientPicker">
+        <option value="">— Nouveau client —</option>
+      </select>
+    </div>
     <div class="grid-2">
       <div class="field">
         <label for="cliName">Nom du client</label>
@@ -83,6 +90,7 @@
         <input type="text" id="cliAdresse" placeholder="Adresse du client">
       </div>
     </div>
+    <button type="button" class="btn-secondary" id="saveClientBtn">+ Enregistrer ce client</button>
 
     <h2>Prestations</h2>
     <div class="lignes-head" aria-hidden="true">
@@ -120,6 +128,12 @@
       <label><input type="radio" name="template" value="elegant"> Elegant</label>
       <label><input type="radio" name="template" value="minimal"> Minimal</label>
     </div>
+
+    <h2>Historique</h2>
+    <details class="history-panel">
+      <summary>Voir mes documents enregistrés</summary>
+      <div id="historyList" class="history-list"></div>
+    </details>
 
     <div class="action-buttons">
       <button type="button" class="btn-primary" id="printBtn">
@@ -200,6 +214,6 @@
   </button>
 </nav>
 
-<script src="script.js?v=21"></script>
+<script src="script.js?v=23"></script>
 </body>
 </html>
