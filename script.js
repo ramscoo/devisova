@@ -113,7 +113,10 @@ const TEMPLATES = ['classic', 'modern', 'elegant', 'minimal'];
 
 function docTemplate() {
   const checked = document.querySelector('input[name="template"]:checked');
-  return (checked && TEMPLATES.includes(checked.value)) ? checked.value : 'classic';
+  const raw = (checked && TEMPLATES.includes(checked.value)) ? checked.value : 'classic';
+  // Free/anonyme : seul Classic est autorise, meme si un radio non-classic
+  // est techniquement coche (ex. document charge avant un downgrade).
+  return (raw === 'classic' || DevisioStorage.isPro()) ? raw : 'classic';
 }
 
 function renderPreview() {
@@ -176,33 +179,56 @@ function renderPreview() {
   if (footer) footer.textContent = `${docType() === 'facture' ? 'Facture générée' : 'Devis généré'} avec Devisio`;
 
   updateConvertButtonVisibility();
+  updateFreeGatingUI();
 }
 
-// ===== Conversion Devis -> Facture =====
-// Le bouton n'apparaît que pour un devis déjà chargé/enregistré (currentId non nul) :
-// convertir un brouillon jamais sauvegardé n'a pas de sens, rien à distinguer de "+ Nouveau".
+// ===== Conversion Devis -> Facture (fonctionnalite Pro) =====
+// Le bouton n'apparaît que pour un devis déjà chargé/enregistré (currentId non nul)
+// ET pour un compte Pro : convertir un brouillon jamais sauvegardé n'a pas de sens,
+// et la conversion est hors du perimetre Free (matrice Step 8.3).
 function updateConvertButtonVisibility() {
   const btn = document.getElementById('convertBtn');
   if (!btn) return;
-  btn.style.display = (docType() === 'devis' && currentId !== null) ? '' : 'none';
+  btn.style.display = (docType() === 'devis' && currentId !== null && DevisioStorage.isPro()) ? '' : 'none';
 }
 
-// ===== Sauvegarde locale =====
+// ===== Free gating (templates non-Classic, duplication) =====
+// Les fonctionnalites restent dans le code : on les desactive simplement pour
+// les comptes non-Pro, sans rien supprimer (matrice Step 8.3).
+function updateFreeGatingUI() {
+  const pro = DevisioStorage.isPro();
+  document.querySelectorAll('input[name="template"]').forEach(radio => {
+    if (radio.value === 'classic') return;
+    radio.disabled = !pro;
+    const label = radio.closest('label');
+    if (label) {
+      label.classList.toggle('template-locked', !pro);
+      label.title = pro ? '' : 'Fonctionnalité Pro';
+    }
+  });
+  const dupBtn = document.getElementById('duplicateBtn');
+  if (dupBtn) {
+    dupBtn.disabled = !pro;
+    dupBtn.title = pro ? '' : 'Fonctionnalité Pro — passe à Pro pour dupliquer un document.';
+  }
+}
+
+// ===== Sauvegarde des documents (adapter Step 8.3 : localStorage ou Supabase) =====
 function loadAllSaved() {
-  return JSON.parse(localStorage.getItem('devisio_documents') || '[]');
+  return DevisioStorage.getDocuments();
 }
 
 function saveAllSaved(arr) {
-  localStorage.setItem('devisio_documents', JSON.stringify(arr));
+  DevisioStorage.setDocuments(arr);
 }
 
-// ===== Profil "Mon entreprise" (mémorisé séparément des documents) =====
+// ===== Profil "Mon entreprise" (adapter Step 8.3 : localStorage ou Supabase) =====
 function loadProfile() {
-  return JSON.parse(localStorage.getItem('devisio_profile') || 'null');
+  return DevisioStorage.getProfile();
 }
 
 function saveProfile(profile) {
-  localStorage.setItem('devisio_profile', JSON.stringify(profile));
+  DevisioStorage.setProfile(profile);
 }
 
 function collectProfile() {
@@ -235,13 +261,13 @@ function maybeSaveProfile() {
   saveProfile(collectProfile());
 }
 
-// ===== Clients enregistrés (indépendants des documents) =====
+// ===== Clients enregistrés (adapter Step 8.3 : localStorage ou Supabase) =====
 function loadClients() {
-  return JSON.parse(localStorage.getItem('devisio_clients') || '[]');
+  return DevisioStorage.getClients();
 }
 
 function saveClients(arr) {
-  localStorage.setItem('devisio_clients', JSON.stringify(arr));
+  DevisioStorage.setClients(arr);
 }
 
 function refreshClientPicker() {
@@ -277,19 +303,23 @@ document.getElementById('saveClientBtn').addEventListener('click', () => {
   }
   const adresse = document.getElementById('cliAdresse').value;
   const clients = loadClients();
-  clients.push({ id: Date.now().toString(), nom, adresse });
+  clients.push({ id: crypto.randomUUID(), nom, adresse });
   saveClients(clients);
   refreshClientPicker();
   showToast(`✓ Client enregistré : ${nom}`);
 });
 
 // ===== Protection contre la perte de données non enregistrées =====
-// collectState() génère un id aléatoire (Date.now()) tant que le document n'est pas
-// encore enregistré (currentId === null) : on l'exclut de la comparaison, sinon deux
-// appels consécutifs sans aucun changement réel seraient à tort vus comme "modifiés".
+// collectState() génère un id ET une date aléatoires (crypto.randomUUID() /
+// new Date()) tant que le document n'est pas encore enregistré (currentId
+// === null) : on les exclut tous les deux de la comparaison, sinon deux
+// appels consécutifs sans aucun changement réel seraient à tort vus comme
+// "modifiés" (un document neuf jamais sauvegardé semblerait alors
+// éternellement "non enregistré", même juste après un chargement de page).
 function snapshotForComparison() {
   const state = collectState();
   state.id = 'snapshot';
+  state.date = 'snapshot';
   return JSON.stringify(state);
 }
 
@@ -379,7 +409,7 @@ function refreshDocumentsUI() {
 
 function collectState() {
   return {
-    id: currentId || (Date.now().toString()),
+    id: currentId || crypto.randomUUID(),
     type: docType(),
     numero: document.getElementById('pNumero').textContent || nextNumero(docType()),
     date: currentDocDate || new Date().toISOString(),
@@ -442,10 +472,15 @@ document.getElementById('saveBtn').addEventListener('click', () => {
     document.getElementById('pNumero').textContent = nextNumero(docType());
   }
   const state = collectState();
-  currentId = state.id;
-  currentDocDate = state.date;
   const all = loadAllSaved();
   const idx = all.findIndex(d => d.id === state.id);
+  const isNewDocument = idx < 0;
+  if (isNewDocument && !DevisioStorage.canCreateDocument()) {
+    showToast('Tu as atteint la limite de 3 documents ce mois-ci. Passe à Pro pour créer des documents sans limite.');
+    return;
+  }
+  currentId = state.id;
+  currentDocDate = state.date;
   if (idx >= 0) all[idx] = state; else all.push(state);
   saveAllSaved(all);
   refreshDocumentsUI();
@@ -457,6 +492,10 @@ document.getElementById('saveBtn').addEventListener('click', () => {
 
 document.getElementById('newBtn').addEventListener('click', () => {
   if (!confirmDiscard()) return;
+  if (!DevisioStorage.canCreateDocument()) {
+    showToast('Tu as atteint la limite de 3 documents ce mois-ci. Passe à Pro pour créer des documents sans limite.');
+    return;
+  }
   currentId = null;
   currentDocDate = null;
   logoData = null;
@@ -481,6 +520,10 @@ document.getElementById('newBtn').addEventListener('click', () => {
 });
 
 document.getElementById('duplicateBtn').addEventListener('click', () => {
+  if (!DevisioStorage.isPro()) {
+    showToast('La duplication est une fonctionnalité Pro.');
+    return;
+  }
   const numero = document.getElementById('pNumero').textContent;
   if (!numero) {
     showToast('Renseigne ou enregistre d\'abord un document à dupliquer.');
@@ -488,7 +531,7 @@ document.getElementById('duplicateBtn').addEventListener('click', () => {
   }
   const source = collectState();
   const duplicate = Object.assign({}, source, {
-    id: Date.now().toString(),
+    id: crypto.randomUUID(),
     numero: nextNumero(source.type),
     date: new Date().toISOString(),
   });
@@ -506,9 +549,13 @@ document.getElementById('duplicateBtn').addEventListener('click', () => {
 });
 
 document.getElementById('convertBtn').addEventListener('click', () => {
+  if (!DevisioStorage.isPro()) {
+    showToast('La conversion en facture est une fonctionnalité Pro.');
+    return;
+  }
   const source = collectState();
   const converted = Object.assign({}, source, {
-    id: Date.now().toString(),
+    id: crypto.randomUUID(),
     type: 'facture',
     numero: nextNumero('facture'),
     date: new Date().toISOString(),
@@ -748,10 +795,14 @@ Object.entries(mobileActionMap).forEach(([mobileId, targetId]) => {
 });
 
 // ===== Init =====
-refreshDocumentsUI();
-refreshClientPicker();
-document.getElementById('pNumero').textContent = nextNumero(docType());
-applyProfile(loadProfile());
-renderForm();
-renderPreview();
-markSnapshotClean();
+// Attend que le storage adapter ait charge les donnees (localStorage,
+// instantane, ou Supabase pour un compte deja connecte au chargement).
+DevisioStorage.ready.then(() => {
+  refreshDocumentsUI();
+  refreshClientPicker();
+  document.getElementById('pNumero').textContent = nextNumero(docType());
+  applyProfile(loadProfile());
+  renderForm();
+  renderPreview();
+  markSnapshotClean();
+});

@@ -117,6 +117,11 @@ body {
 
 .template-picker input[type="radio"] { accent-color: var(--blue); margin: 0; }
 
+.template-picker label.template-locked {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 input, select {
   padding: 10px 12px;
   border: 1px solid var(--border);
