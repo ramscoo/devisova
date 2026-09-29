@@ -174,6 +174,17 @@ function renderPreview() {
 
   const footer = document.getElementById('pFooter');
   if (footer) footer.textContent = `${docType() === 'facture' ? 'Facture générée' : 'Devis généré'} avec Devisio`;
+
+  updateConvertButtonVisibility();
+}
+
+// ===== Conversion Devis -> Facture =====
+// Le bouton n'apparaît que pour un devis déjà chargé/enregistré (currentId non nul) :
+// convertir un brouillon jamais sauvegardé n'a pas de sens, rien à distinguer de "+ Nouveau".
+function updateConvertButtonVisibility() {
+  const btn = document.getElementById('convertBtn');
+  if (!btn) return;
+  btn.style.display = (docType() === 'devis' && currentId !== null) ? '' : 'none';
 }
 
 // ===== Sauvegarde locale =====
@@ -441,6 +452,7 @@ document.getElementById('saveBtn').addEventListener('click', () => {
   document.getElementById('savedList').value = state.id;
   showToast(`✓ ${state.type === 'facture' ? 'Facture' : 'Devis'} enregistré : ${state.numero}`);
   markSnapshotClean();
+  updateConvertButtonVisibility();
 });
 
 document.getElementById('newBtn').addEventListener('click', () => {
@@ -491,6 +503,24 @@ document.getElementById('duplicateBtn').addEventListener('click', () => {
   renderPreview();
   markSnapshotClean();
   showToast(`✓ Document dupliqué : ${duplicate.numero}`);
+});
+
+document.getElementById('convertBtn').addEventListener('click', () => {
+  const source = collectState();
+  const converted = Object.assign({}, source, {
+    id: Date.now().toString(),
+    type: 'facture',
+    numero: nextNumero('facture'),
+    date: new Date().toISOString(),
+  });
+  const all = loadAllSaved();
+  all.push(converted);
+  saveAllSaved(all);
+  applyState(converted);
+  refreshDocumentsUI();
+  document.getElementById('savedList').value = converted.id;
+  markSnapshotClean();
+  showToast(`✓ Facture créée : ${converted.numero}`);
 });
 
 document.getElementById('savedList').addEventListener('change', (e) => {
