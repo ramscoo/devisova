@@ -8,8 +8,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lora:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="tokens.css?v=24">
-<link rel="stylesheet" href="style.css?v=24">
+<link rel="stylesheet" href="style.css?v=25">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body>
 
@@ -34,7 +35,37 @@
     <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
     Enregistrer
   </button>
+  <button type="button" class="btn-toolbar" id="accountBtn">Compte</button>
 </div>
+
+<dialog id="accountDialog" class="account-dialog">
+  <button type="button" class="account-close" id="accountCloseBtn" aria-label="Fermer">×</button>
+  <div id="authLoggedOut">
+    <h2>Mon compte</h2>
+    <p class="account-sub">Crée un compte gratuit pour sauvegarder tes devis dans le cloud et les retrouver sur tous tes appareils.</p>
+    <form id="authForm">
+      <div class="field">
+        <label for="authEmail">Email</label>
+        <input type="email" id="authEmail" required autocomplete="email">
+      </div>
+      <div class="field">
+        <label for="authPassword">Mot de passe</label>
+        <input type="password" id="authPassword" required autocomplete="current-password" minlength="6">
+      </div>
+      <p id="authError" class="account-error" role="alert" hidden></p>
+      <p id="authInfo" class="account-info" hidden></p>
+      <div class="account-actions">
+        <button type="submit" class="btn-primary" id="authLoginBtn">Se connecter</button>
+        <button type="button" class="btn-secondary" id="authSignupBtn">Créer un compte</button>
+      </div>
+    </form>
+  </div>
+  <div id="authLoggedIn" hidden>
+    <h2>Mon compte</h2>
+    <p class="account-email" id="authEmailDisplay"></p>
+    <button type="button" class="btn-secondary" id="authLogoutBtn">Se déconnecter</button>
+  </div>
+</dialog>
 
 <div class="mobile-tabs no-print" role="tablist" aria-label="Navigation devis">
   <button type="button" class="mobile-tab active" id="tabEdit" role="tab" aria-selected="true">Modifier</button>
@@ -215,6 +246,8 @@
   </button>
 </nav>
 
+<script src="supabase-config.js?v=1"></script>
+<script src="auth.js?v=1"></script>
 <script src="script.js?v=24"></script>
 </body>
 </html>
