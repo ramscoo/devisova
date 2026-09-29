@@ -1,4 +1,4 @@
-// Configuration publique Supabase pour Devisio.
+// Configuration publique Supabase pour Devisova.
 //
 // SEULE la cle publique ("publishable"/"anon") va ici : elle est concue
 // pour etre visible cote navigateur, la securite reelle vient des

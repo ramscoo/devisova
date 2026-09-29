@@ -18,6 +18,39 @@ let _bootstrapped = false;
 let _resolveReady;
 const _readyPromise = new Promise((resolve) => { _resolveReady = resolve; });
 
+// ===================================================================
+// Renommage de marque Devisio -> Devisova : migration douce des clés
+// localStorage. Les anciennes clés "devisio_*" ne sont JAMAIS supprimées
+// (filet de sécurité) ; on copie simplement leur contenu vers les
+// nouvelles clés "devisova_*" si celles-ci n'existent pas encore, pour
+// qu'un utilisateur déjà actif ne perde aucune donnée locale.
+// ===================================================================
+(function migrateLegacyBrandKeys() {
+  const staticMap = {
+    devisio_documents: 'devisova_documents',
+    devisio_clients: 'devisova_clients',
+    devisio_profile: 'devisova_profile',
+  };
+  for (const [oldKey, newKey] of Object.entries(staticMap)) {
+    if (localStorage.getItem(newKey) === null) {
+      const oldValue = localStorage.getItem(oldKey);
+      if (oldValue !== null) localStorage.setItem(newKey, oldValue);
+    }
+  }
+  // devisio_migrated_<userId> : prefixe dynamique, une cle par utilisateur.
+  const legacyMigratedKeys = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith('devisio_migrated_')) legacyMigratedKeys.push(key);
+  }
+  for (const oldKey of legacyMigratedKeys) {
+    const newKey = oldKey.replace('devisio_migrated_', 'devisova_migrated_');
+    if (localStorage.getItem(newKey) === null) {
+      localStorage.setItem(newKey, localStorage.getItem(oldKey));
+    }
+  }
+})();
+
 function isAuthenticatedMode() {
   return !!(_currentSession && _currentSession.user);
 }
@@ -103,12 +136,12 @@ function profileFromSql(row) {
 // ===================================================================
 // Backend localStorage (identique au comportement pre-Step-8.3)
 // ===================================================================
-function localLoadDocuments() { return JSON.parse(localStorage.getItem('devisio_documents') || '[]'); }
-function localSaveDocuments(arr) { localStorage.setItem('devisio_documents', JSON.stringify(arr)); }
-function localLoadClients() { return JSON.parse(localStorage.getItem('devisio_clients') || '[]'); }
-function localSaveClients(arr) { localStorage.setItem('devisio_clients', JSON.stringify(arr)); }
-function localLoadProfile() { return JSON.parse(localStorage.getItem('devisio_profile') || 'null'); }
-function localSaveProfile(p) { localStorage.setItem('devisio_profile', JSON.stringify(p)); }
+function localLoadDocuments() { return JSON.parse(localStorage.getItem('devisova_documents') || '[]'); }
+function localSaveDocuments(arr) { localStorage.setItem('devisova_documents', JSON.stringify(arr)); }
+function localLoadClients() { return JSON.parse(localStorage.getItem('devisova_clients') || '[]'); }
+function localSaveClients(arr) { localStorage.setItem('devisova_clients', JSON.stringify(arr)); }
+function localLoadProfile() { return JSON.parse(localStorage.getItem('devisova_profile') || 'null'); }
+function localSaveProfile(p) { localStorage.setItem('devisova_profile', JSON.stringify(p)); }
 
 // ===================================================================
 // Backend Supabase (async)
@@ -248,7 +281,7 @@ async function runMigrationIfNeeded() {
 
 async function runMigration() {
   const userId = _currentSession.user.id;
-  const migratedKey = 'devisio_migrated_' + userId;
+  const migratedKey = 'devisova_migrated_' + userId;
   if (localStorage.getItem(migratedKey)) return;
 
   const localDocs = localLoadDocuments();
@@ -444,7 +477,7 @@ function canCreateDocument() {
 
 // ===================================================================
 // API publique (signatures SYNCHRONES : le cache est deja en memoire
-// une fois DevisioStorage.ready resolu).
+// une fois DevisovaStorage.ready resolu).
 // ===================================================================
 // getDocuments()/getClients() renvoient une COPIE du tableau (pas la
 // reference interne) : le reste de l'app mute librement ce qu'il recoit
@@ -486,7 +519,7 @@ function setProfile(p) {
   }
 }
 
-window.DevisioStorage = {
+window.DevisovaStorage = {
   ready: _readyPromise,
   getDocuments,
   setDocuments,
@@ -500,3 +533,8 @@ window.DevisioStorage = {
   countDocumentsThisMonth,
   canCreateDocument,
 };
+
+// Alias de compatibilite temporaire : au cas ou une reference a l'ancien
+// nom "DevisioStorage" subsisterait quelque part (cache navigateur non
+// rafraichi, extension, etc.), elle continue de fonctionner a l'identique.
+window.DevisioStorage = window.DevisovaStorage;

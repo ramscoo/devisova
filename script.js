@@ -116,7 +116,7 @@ function docTemplate() {
   const raw = (checked && TEMPLATES.includes(checked.value)) ? checked.value : 'classic';
   // Free/anonyme : seul Classic est autorise, meme si un radio non-classic
   // est techniquement coche (ex. document charge avant un downgrade).
-  return (raw === 'classic' || DevisioStorage.isPro()) ? raw : 'classic';
+  return (raw === 'classic' || DevisovaStorage.isPro()) ? raw : 'classic';
 }
 
 function renderPreview() {
@@ -176,7 +176,7 @@ function renderPreview() {
   if (mNumero) mNumero.textContent = document.getElementById('pNumero').textContent;
 
   const footer = document.getElementById('pFooter');
-  if (footer) footer.textContent = `${docType() === 'facture' ? 'Facture générée' : 'Devis généré'} avec Devisio`;
+  if (footer) footer.textContent = `${docType() === 'facture' ? 'Facture générée' : 'Devis généré'} avec Devisova`;
 
   updateConvertButtonVisibility();
   updateFreeGatingUI();
@@ -189,14 +189,14 @@ function renderPreview() {
 function updateConvertButtonVisibility() {
   const btn = document.getElementById('convertBtn');
   if (!btn) return;
-  btn.style.display = (docType() === 'devis' && currentId !== null && DevisioStorage.isPro()) ? '' : 'none';
+  btn.style.display = (docType() === 'devis' && currentId !== null && DevisovaStorage.isPro()) ? '' : 'none';
 }
 
 // ===== Free gating (templates non-Classic, duplication) =====
 // Les fonctionnalites restent dans le code : on les desactive simplement pour
 // les comptes non-Pro, sans rien supprimer (matrice Step 8.3).
 function updateFreeGatingUI() {
-  const pro = DevisioStorage.isPro();
+  const pro = DevisovaStorage.isPro();
   document.querySelectorAll('input[name="template"]').forEach(radio => {
     if (radio.value === 'classic') return;
     radio.disabled = !pro;
@@ -215,20 +215,20 @@ function updateFreeGatingUI() {
 
 // ===== Sauvegarde des documents (adapter Step 8.3 : localStorage ou Supabase) =====
 function loadAllSaved() {
-  return DevisioStorage.getDocuments();
+  return DevisovaStorage.getDocuments();
 }
 
 function saveAllSaved(arr) {
-  DevisioStorage.setDocuments(arr);
+  DevisovaStorage.setDocuments(arr);
 }
 
 // ===== Profil "Mon entreprise" (adapter Step 8.3 : localStorage ou Supabase) =====
 function loadProfile() {
-  return DevisioStorage.getProfile();
+  return DevisovaStorage.getProfile();
 }
 
 function saveProfile(profile) {
-  DevisioStorage.setProfile(profile);
+  DevisovaStorage.setProfile(profile);
 }
 
 function collectProfile() {
@@ -263,11 +263,11 @@ function maybeSaveProfile() {
 
 // ===== Clients enregistrés (adapter Step 8.3 : localStorage ou Supabase) =====
 function loadClients() {
-  return DevisioStorage.getClients();
+  return DevisovaStorage.getClients();
 }
 
 function saveClients(arr) {
-  DevisioStorage.setClients(arr);
+  DevisovaStorage.setClients(arr);
 }
 
 function refreshClientPicker() {
@@ -475,7 +475,7 @@ document.getElementById('saveBtn').addEventListener('click', () => {
   const all = loadAllSaved();
   const idx = all.findIndex(d => d.id === state.id);
   const isNewDocument = idx < 0;
-  if (isNewDocument && !DevisioStorage.canCreateDocument()) {
+  if (isNewDocument && !DevisovaStorage.canCreateDocument()) {
     showToast('Tu as atteint la limite de 3 documents ce mois-ci. Passe à Pro pour créer des documents sans limite.');
     return;
   }
@@ -492,7 +492,7 @@ document.getElementById('saveBtn').addEventListener('click', () => {
 
 document.getElementById('newBtn').addEventListener('click', () => {
   if (!confirmDiscard()) return;
-  if (!DevisioStorage.canCreateDocument()) {
+  if (!DevisovaStorage.canCreateDocument()) {
     showToast('Tu as atteint la limite de 3 documents ce mois-ci. Passe à Pro pour créer des documents sans limite.');
     return;
   }
@@ -520,7 +520,7 @@ document.getElementById('newBtn').addEventListener('click', () => {
 });
 
 document.getElementById('duplicateBtn').addEventListener('click', () => {
-  if (!DevisioStorage.isPro()) {
+  if (!DevisovaStorage.isPro()) {
     showToast('La duplication est une fonctionnalité Pro.');
     return;
   }
@@ -549,7 +549,7 @@ document.getElementById('duplicateBtn').addEventListener('click', () => {
 });
 
 document.getElementById('convertBtn').addEventListener('click', () => {
-  if (!DevisioStorage.isPro()) {
+  if (!DevisovaStorage.isPro()) {
     showToast('La conversion en facture est une fonctionnalité Pro.');
     return;
   }
@@ -797,7 +797,7 @@ Object.entries(mobileActionMap).forEach(([mobileId, targetId]) => {
 // ===== Init =====
 // Attend que le storage adapter ait charge les donnees (localStorage,
 // instantane, ou Supabase pour un compte deja connecte au chargement).
-DevisioStorage.ready.then(() => {
+DevisovaStorage.ready.then(() => {
   refreshDocumentsUI();
   refreshClientPicker();
   document.getElementById('pNumero').textContent = nextNumero(docType());
