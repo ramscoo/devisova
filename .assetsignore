@@ -1,0 +1,5 @@
+.git
+.wrangler
+supabase
+wrangler.jsonc
+.assetsignore
