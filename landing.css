@@ -252,22 +252,27 @@ a { color: inherit; }
 .pricing-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 28px;
-  max-width: 720px;
+  gap: 24px;
+  max-width: 1040px;
   margin: 0 auto;
+  align-items: stretch;
 }
 
-@media (min-width: 640px) {
-  .pricing-grid { grid-template-columns: 1fr 1fr; }
+@media (min-width: 900px) {
+  .pricing-grid { grid-template-columns: repeat(3, 1fr); }
 }
 
 .price-card {
+  display: flex;
+  flex-direction: column;
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   padding: 32px 28px 28px;
   position: relative;
   transition: transform var(--transition-base), box-shadow var(--transition-base);
 }
+
+.price-card ul { flex: 1; }
 
 .price-card.featured {
   border: 2px solid var(--blue);

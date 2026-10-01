@@ -60,15 +60,18 @@ function refreshAuthUI(session) {
   const loggedOut = document.getElementById('authLoggedOut');
   const loggedIn = document.getElementById('authLoggedIn');
   const accountBtn = document.getElementById('accountBtn');
+  const accountBtnLabel = document.getElementById('accountBtnLabel');
   if (session && session.user) {
     loggedOut.hidden = true;
     loggedIn.hidden = false;
     document.getElementById('authEmailDisplay').textContent = session.user.email;
-    accountBtn.textContent = 'Connecté';
+    accountBtnLabel.textContent = 'Connecté';
+    accountBtn.setAttribute('aria-label', 'Connecté — mon compte');
   } else {
     loggedOut.hidden = false;
     loggedIn.hidden = true;
-    accountBtn.textContent = 'Compte';
+    accountBtnLabel.textContent = 'Compte';
+    accountBtn.setAttribute('aria-label', 'Compte');
   }
 }
 

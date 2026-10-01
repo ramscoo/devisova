@@ -29,6 +29,16 @@ function fmt(n, currency) {
   }
 }
 
+// Les champs qté/prix sont en type="text" inputmode="decimal" (pas type="number") :
+// un <input type="number"> renvoie un .value VIDE des qu'il contient une virgule
+// ("45,00" -> value === ""), silencieusement, sans erreur visible — exactement le
+// bug observe (qté 1, prix affiché 45,00, total 0). Le clavier numerique mobile
+// reste declenche via inputmode="decimal", mais le parsing gere les deux separateurs.
+function parseLocaleNumber(str) {
+  const n = parseFloat(String(str).trim().replace(',', '.'));
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+}
+
 // ===== Lignes de prestation =====
 function renderForm() {
   const container = document.getElementById('lignes');
@@ -51,11 +61,11 @@ function renderForm() {
       </div>
       <div class="ligne-field ligne-field-qty">
         <span class="ligne-field-label">Qté</span>
-        <input type="number" value="${qtyValue}" data-i="${i}" data-field="qty" min="0" placeholder="1" aria-label="Quantité">
+        <input type="text" inputmode="decimal" value="${qtyValue}" data-i="${i}" data-field="qty" placeholder="1" aria-label="Quantité">
       </div>
       <div class="ligne-field ligne-field-prix">
         <span class="ligne-field-label">Prix HT</span>
-        <input type="number" value="${prixValue}" data-i="${i}" data-field="prix" min="0" step="0.01" placeholder="45,00" aria-label="Prix unitaire HT">
+        <input type="text" inputmode="decimal" value="${prixValue}" data-i="${i}" data-field="prix" placeholder="0,00" aria-label="Prix unitaire HT">
       </div>
       <div class="ligne-field ligne-field-total">
         <span class="ligne-field-label">Total</span>
@@ -70,7 +80,7 @@ function renderForm() {
     inp.addEventListener('input', (e) => {
       const i = e.target.dataset.i;
       const field = e.target.dataset.field;
-      lignes[i][field] = field === 'desc' ? e.target.value : parseFloat(e.target.value) || 0;
+      lignes[i][field] = field === 'desc' ? e.target.value : parseLocaleNumber(e.target.value);
       delete lignes[i]._pristine;
       if (field === 'qty' || field === 'prix') {
         const totalEl = e.target.closest('.ligne-row').querySelector('.ligne-total');
@@ -343,16 +353,78 @@ function nextNumero(type) {
   return `${prefix}-${year}-${String(countThisYear + 1).padStart(3, '0')}`;
 }
 
-function refreshSavedList() {
-  const select = document.getElementById('savedList');
-  const all = loadAllSaved();
-  select.innerHTML = '<option value="">— Mes documents enregistrés —</option>';
-  all.forEach(d => {
-    const opt = document.createElement('option');
-    opt.value = d.id;
-    opt.textContent = `${d.numero} · ${d.cliName || 'Sans client'}`;
-    select.appendChild(opt);
+// ===== Sélecteur "Mes documents" (dropdown custom, pas un <select> natif) =====
+// Sur mobile, un <select> natif ouvre le picker systeme (overlay sombre, texte
+// enorme, non stylable) : remplace par un bouton + une liste HTML normale,
+// entierement habillee en CSS, avec le meme comportement (un seul document
+// selectionnable a la fois, charge le bon document au clic, ferme ensuite).
+let selectedDocId = '';
+
+function docPickerOptionLabel(d) {
+  return `${d.numero} · ${d.cliName || 'Sans client'}`;
+}
+
+function refreshDocPickerLabel() {
+  const label = document.getElementById('docPickerLabel');
+  if (!label) return;
+  const doc = selectedDocId ? loadAllSaved().find(d => d.id === selectedDocId) : null;
+  label.textContent = doc ? docPickerOptionLabel(doc) : '— Mes documents enregistrés —';
+}
+
+// Point d'entree unique pour marquer un document comme "actuellement charge"
+// dans le picker : remplace les anciennes affectations a `savedList.value`.
+function setSavedListValue(id) {
+  selectedDocId = id || '';
+  refreshDocPickerLabel();
+  document.querySelectorAll('.doc-picker-option').forEach(opt => {
+    const isSelected = opt.dataset.id === selectedDocId;
+    opt.classList.toggle('selected', isSelected);
+    if (isSelected) opt.setAttribute('aria-selected', 'true');
+    else opt.removeAttribute('aria-selected');
   });
+}
+
+function closeDocPicker() {
+  const trigger = document.getElementById('docPickerTrigger');
+  const menu = document.getElementById('docPickerMenu');
+  if (!trigger || !menu) return;
+  menu.hidden = true;
+  trigger.setAttribute('aria-expanded', 'false');
+}
+
+function openDocPicker() {
+  const trigger = document.getElementById('docPickerTrigger');
+  const menu = document.getElementById('docPickerMenu');
+  if (!trigger || !menu) return;
+  menu.hidden = false;
+  trigger.setAttribute('aria-expanded', 'true');
+}
+
+function refreshSavedList() {
+  const menu = document.getElementById('docPickerMenu');
+  const all = loadAllSaved();
+  menu.innerHTML = '';
+  if (!all.length) {
+    const empty = document.createElement('div');
+    empty.className = 'doc-picker-empty';
+    empty.textContent = 'Aucun document enregistré pour l\'instant.';
+    menu.appendChild(empty);
+  } else {
+    all.forEach(d => {
+      const opt = document.createElement('button');
+      opt.type = 'button';
+      opt.className = 'doc-picker-option';
+      opt.setAttribute('role', 'option');
+      opt.dataset.id = d.id;
+      opt.textContent = docPickerOptionLabel(d);
+      if (d.id === selectedDocId) {
+        opt.classList.add('selected');
+        opt.setAttribute('aria-selected', 'true');
+      }
+      menu.appendChild(opt);
+    });
+  }
+  refreshDocPickerLabel();
 }
 
 function docTotalTTC(d) {
@@ -394,7 +466,7 @@ function renderHistory() {
       const doc = loadAllSaved().find(x => x.id === btn.dataset.id);
       if (!doc) return;
       applyState(doc);
-      document.getElementById('savedList').value = doc.id;
+      setSavedListValue(doc.id);
       markSnapshotClean();
     });
   });
@@ -484,7 +556,7 @@ document.getElementById('saveBtn').addEventListener('click', () => {
   if (idx >= 0) all[idx] = state; else all.push(state);
   saveAllSaved(all);
   refreshDocumentsUI();
-  document.getElementById('savedList').value = state.id;
+  setSavedListValue(state.id);
   showToast(`✓ ${state.type === 'facture' ? 'Facture' : 'Devis'} enregistré : ${state.numero}`);
   markSnapshotClean();
   updateConvertButtonVisibility();
@@ -509,9 +581,13 @@ document.getElementById('newBtn').addEventListener('click', () => {
   document.getElementById('cliAdresse').value = '';
   document.getElementById('clientPicker').value = '';
   document.getElementById('logoLabel').textContent = "+ Ajouter mon logo (optionnel)";
-  document.getElementById('savedList').value = '';
+  setSavedListValue('');
   document.getElementById('typeDevis').checked = true;
   document.getElementById('typeFacture').checked = false;
+  // Un nouveau document repart sur le modèle par défaut (Classic) : sans ça, un
+  // compte Pro qui avait choisi "Modern" sur le document précédent se retrouvait
+  // avec "Modern" toujours coché (et donc appliqué) sur ce nouveau document vierge.
+  document.querySelector('input[name="template"][value="classic"]').checked = true;
   document.getElementById('pNumero').textContent = nextNumero(docType());
   applyProfile(loadProfile());
   renderForm();
@@ -519,7 +595,11 @@ document.getElementById('newBtn').addEventListener('click', () => {
   markSnapshotClean();
 });
 
-document.getElementById('duplicateBtn').addEventListener('click', () => {
+// La fonctionnalite de duplication (reservee Pro) reste intacte dans le code :
+// seul son bouton d'acces a ete retire de la zone principale, trop chargee
+// (section 7 de la demande). A reconnecter plus tard (ex. menu d'un document
+// dans l'historique) via document.getElementById('duplicateBtn'), s'il existe.
+function duplicateCurrentDocument() {
   if (!DevisovaStorage.isPro()) {
     showToast('La duplication est une fonctionnalité Pro.');
     return;
@@ -542,11 +622,13 @@ document.getElementById('duplicateBtn').addEventListener('click', () => {
   currentDocDate = duplicate.date;
   document.getElementById('pNumero').textContent = duplicate.numero;
   refreshDocumentsUI();
-  document.getElementById('savedList').value = duplicate.id;
+  setSavedListValue(duplicate.id);
   renderPreview();
   markSnapshotClean();
   showToast(`✓ Document dupliqué : ${duplicate.numero}`);
-});
+}
+const duplicateBtn = document.getElementById('duplicateBtn');
+if (duplicateBtn) duplicateBtn.addEventListener('click', duplicateCurrentDocument);
 
 document.getElementById('convertBtn').addEventListener('click', () => {
   if (!DevisovaStorage.isPro()) {
@@ -565,30 +647,74 @@ document.getElementById('convertBtn').addEventListener('click', () => {
   saveAllSaved(all);
   applyState(converted);
   refreshDocumentsUI();
-  document.getElementById('savedList').value = converted.id;
+  setSavedListValue(converted.id);
   markSnapshotClean();
   showToast(`✓ Facture créée : ${converted.numero}`);
 });
 
-document.getElementById('savedList').addEventListener('change', (e) => {
-  if (!e.target.value) return;
-  if (!confirmDiscard()) {
-    e.target.value = currentId || '';
-    return;
-  }
-  const all = loadAllSaved();
-  const doc = all.find(d => d.id === e.target.value);
+document.getElementById('docPickerTrigger').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const menu = document.getElementById('docPickerMenu');
+  if (menu.hidden) openDocPicker(); else closeDocPicker();
+});
+
+document.getElementById('docPickerMenu').addEventListener('click', (e) => {
+  const opt = e.target.closest('.doc-picker-option');
+  closeDocPicker();
+  if (!opt || !opt.dataset.id) return;
+  if (!confirmDiscard()) return;
+  const doc = loadAllSaved().find(d => d.id === opt.dataset.id);
   if (doc) {
     applyState(doc);
+    setSavedListValue(doc.id);
     markSnapshotClean();
   }
 });
 
+document.addEventListener('click', (e) => {
+  const picker = document.getElementById('docPicker');
+  if (picker && !picker.contains(e.target)) closeDocPicker();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeDocPicker();
+});
+
+// Changer Devis <-> Facture pendant qu'un document deja enregistre est charge
+// (currentId non nul) doit etre bloque et annule : le type d'un document
+// enregistre ne se change jamais par ce simple bascule.
+//
+// Deux raisons, pas une seule :
+// 1) Laisser passer le changement en reutilisant le meme id ecraserait
+//    silencieusement le document d'origine avec le nouveau type/numero
+//    (bug numero/type desynchronises, ex. DEV-2026-003 en apercu vs
+//    DEV-2026-002 dans la liste).
+// 2) Laisser passer le changement en detachant simplement l'id (nouveau
+//    document, meme contenu) reviendrait a dupliquer librement client +
+//    lignes d'un document existant sous un nouveau numero — exactement ce
+//    que "Dupliquer" fait, mais sans jamais passer par son controle Pro
+//    (storage.js: PRO_ONLY_FEATURES.includes('duplicate')).
+// On revient donc toujours au type d'origine : pour un document different,
+// la voie normale reste "Nouveau" (vierge, libre) ou "Transformer en
+// facture" (Pro, conserve le lien avec l'original).
+function blockTypeChangeOnLoadedDocument() {
+  if (currentId === null) return true;
+  const attempted = docType();
+  const original = attempted === 'facture' ? 'devis' : 'facture';
+  document.getElementById('typeDevis').checked = original !== 'facture';
+  document.getElementById('typeFacture').checked = original === 'facture';
+  const proHint = DevisovaStorage.isPro() ? ', ou "Transformer en facture" pour le convertir' : '';
+  showToast(`Ce document est déjà enregistré en ${original === 'facture' ? 'facture' : 'devis'}. Utilise "Nouveau" pour un document vierge${proHint}.`);
+  return false;
+}
+
 document.getElementById('typeDevis').addEventListener('change', () => {
+  if (!blockTypeChangeOnLoadedDocument()) return;
   document.getElementById('pNumero').textContent = nextNumero(docType());
   renderPreview();
 });
 document.getElementById('typeFacture').addEventListener('change', () => {
+  if (!blockTypeChangeOnLoadedDocument()) return;
   document.getElementById('pNumero').textContent = nextNumero(docType());
   renderPreview();
 });

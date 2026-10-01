@@ -8,11 +8,33 @@ body {
 }
 
 .topbar {
+  position: relative;
   background: white;
   border-bottom: 1px solid var(--border);
-  padding: 18px 24px;
+  padding: 18px 70px;
   text-align: center;
 }
+
+.account-icon-btn {
+  position: absolute;
+  top: 50%;
+  right: 18px;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast), color var(--transition-fast);
+}
+
+.account-icon-btn:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-soft); }
+.account-icon-btn .btn-icon { width: 18px; height: 18px; }
 
 .logo {
   font-size: 24px;
@@ -93,34 +115,129 @@ body {
   color: var(--gray);
 }
 
-/* ===== Sélecteur de modèle de document ===== */
+/* ===== Sélecteur de modèle de document : grille 2x2 de cartes ===== */
 .template-picker {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 10px;
   margin-bottom: 20px;
 }
 
-.template-picker label {
+@media (min-width: 640px) {
+  .template-picker { grid-template-columns: repeat(4, 1fr); }
+}
+
+.template-card {
+  position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 10px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+/* Input natif conservé pour l'accessibilité/clavier, mais invisible : l'état
+   visuel passe entièrement par .template-card-dot ci-dessous. */
+.template-card input[type="radio"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  min-height: 0; /* la règle mobile générale "input{min-height:44px}" gonflerait sinon
+                    ce point invisible en colonne de 44px, qui (étant position:absolute)
+                    se peint AU-DESSUS du texte statique .template-card-name et peut
+                    intercepter le tap à sa place — confirmé en test réel sur mobile. */
+  opacity: 0;
+  margin: 0;
+}
+
+.template-card-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  flex-shrink: 0;
+  position: relative;
+  transition: border-color var(--transition-fast);
+}
+
+.template-card-name {
   font-size: var(--fs-sm);
   font-weight: var(--fw-medium);
   color: var(--dark);
-  cursor: pointer;
-  white-space: nowrap;
 }
 
-.template-picker input[type="radio"] { accent-color: var(--blue); margin: 0; }
+.template-card:has(input:checked) {
+  border-color: var(--blue);
+  background: var(--blue-soft);
+}
 
-.template-picker label.template-locked {
+.template-card:has(input:checked) .template-card-dot {
+  border-color: var(--blue);
+}
+
+.template-card:has(input:checked) .template-card-dot::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--blue);
+}
+
+.template-card:has(input:checked) .template-card-name {
+  color: var(--blue);
+  font-weight: var(--fw-semibold);
+}
+
+.template-card:has(input:focus-visible) {
+  box-shadow: var(--shadow-focus);
+}
+
+.template-card.template-locked {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.template-card.template-locked:has(input:checked) {
+  border-color: var(--border);
+  background: none;
+}
+
+.template-card.template-locked:has(input:checked) .template-card-dot { border-color: var(--border); }
+.template-card.template-locked:has(input:checked) .template-card-name { color: var(--dark); font-weight: var(--fw-medium); }
+
+/* Badge "Pro" sur les modèles verrouillés : le title HTML existant n'est jamais
+   visible au toucher sur mobile, cette carte dimmée seule ne dit pas pourquoi
+   elle ne répond pas. Purement visuel (aria-hidden, le title reste la source
+   d'info accessible) et position:absolute : ne modifie ni la taille des cartes
+   ni leur zone cliquable (pointer-events:none, en plus d'être hors du flux). */
+.template-card-badge {
+  display: none;
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: var(--gray);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  pointer-events: none;
+}
+
+.template-card-badge svg { width: 10px; height: 10px; }
+
+.template-card.template-locked .template-card-badge { display: inline-flex; }
 
 input, select {
   padding: 10px 12px;
@@ -280,8 +397,112 @@ input::placeholder { color: var(--gray-light); }
 .doc-type label { display: flex; align-items: center; gap: 8px; cursor: pointer; white-space: nowrap; }
 .doc-type input[type="radio"] { margin: 0; width: 16px; height: 16px; accent-color: var(--blue); }
 
-.toolbar select {
-  max-width: 240px;
+/* ===== Ligne 2 de la toolbar : sélecteur de document + Nouveau =====
+   flex: 1 1 100% force systématiquement cette ligne sur sa propre rangée,
+   quelle que soit la largeur d'écran (le conteneur .toolbar est flex-wrap). */
+.toolbar-row2 {
+  display: flex;
+  gap: 10px;
+  flex: 1 1 100%;
+}
+
+/* ===== Sélecteur "Mes documents" : dropdown custom (pas un <select> natif,
+   dont le picker iOS plein écran/texte énorme n'est pas stylable) ===== */
+.doc-picker {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.doc-picker-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  font-family: var(--font-sans);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--dark);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.doc-picker-trigger:hover { border-color: var(--gray-light); }
+
+.doc-picker-trigger[aria-expanded="true"] {
+  border-color: var(--blue);
+  box-shadow: var(--shadow-focus);
+}
+
+#docPickerLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc-picker-chevron {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--gray);
+  transition: transform var(--transition-fast);
+}
+
+.doc-picker-trigger[aria-expanded="true"] .doc-picker-chevron { transform: rotate(180deg); }
+
+.doc-picker-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  max-height: 280px;
+  overflow-y: auto;
+  z-index: 40;
+  padding: 6px;
+}
+
+.doc-picker-menu[hidden] { display: none; }
+
+.doc-picker-option {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 12px 10px;
+  font-family: var(--font-sans);
+  font-size: var(--fs-sm);
+  color: var(--dark);
+  cursor: pointer;
+}
+
+.doc-picker-option:hover, .doc-picker-option:focus-visible {
+  background: var(--bg);
+  outline: none;
+}
+
+.doc-picker-option.selected {
+  background: var(--blue-soft);
+  color: var(--blue);
+  font-weight: var(--fw-semibold);
+}
+
+.doc-picker-empty {
+  padding: 10px;
+  font-size: var(--fs-sm);
+  color: var(--gray);
 }
 
 .btn-toolbar {
@@ -738,13 +959,14 @@ input::placeholder { color: var(--gray-light); }
    d'actions fixe, ajustements de confort tactile
    =================================================== */
 @media (max-width: 767px) {
-  .topbar { padding: 14px 20px; }
+  .topbar { padding: 14px 60px; }
+  .account-icon-btn { right: 14px; }
   .toolbar { padding: 10px 16px 0; }
 
   /* Les actions Imprimer/PDF/WhatsApp du formulaire desktop, et le bouton Enregistrer
      de la barre d'outils, sont remplacés par la barre d'actions mobile fixe en bas —
-     on évite le doublon. Les autres contrôles de la toolbar (Devis/Facture, documents
-     enregistrés, Nouveau) restent visibles, ils n'existent pas dans la barre mobile. */
+     on évite le doublon. Devis/Facture, sélecteur de document et Nouveau restent
+     visibles : ils n'existent pas dans la barre mobile. */
   .action-buttons, .hint, #saveBtn { display: none; }
 
   .topbar-doc {
@@ -790,7 +1012,14 @@ input::placeholder { color: var(--gray-light); }
   }
 
   .layout { padding: 0 16px; margin: 12px auto 0; gap: 16px; }
-  .panel { padding: 18px; }
+  .panel { padding: 16px; }
+
+  /* Formulaire plus compact sur mobile (section titres, grilles, bouton
+     secondaire) sans toucher aux tailles de texte des champs/boutons eux-mêmes. */
+  .form-panel h2 { margin: 14px 0 8px; }
+  .form-panel h2:first-of-type { margin-top: 0; }
+  .grid-2 { gap: 8px; }
+  .btn-secondary { margin-bottom: 8px; }
 
   /* Un seul panneau visible à la fois, piloté par les onglets */
   .form-panel { display: block; }
@@ -817,12 +1046,22 @@ input::placeholder { color: var(--gray-light); }
     min-height: 44px;
   }
 
-  .btn-primary, .btn-whatsapp, .btn-secondary, .btn-toolbar, .btn-toolbar-primary {
+  .btn-primary, .btn-whatsapp, .btn-secondary, .btn-toolbar, .btn-toolbar-primary, .doc-picker-trigger {
     min-height: 44px;
   }
 
-  /* Barre d'actions fixe en bas, au-dessus des safe areas iPhone */
-  body { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+  /* Barre d'actions fixe en bas, au-dessus des safe areas iPhone. Marge generouse
+     (88px, la barre mesure ~60px) pour que la derniere section du formulaire
+     (Historique notamment) ne soit jamais masquee derriere la barre. */
+  body { padding-bottom: calc(88px + env(safe-area-inset-bottom)); }
+
+  /* scroll-padding-bottom : le navigateur ne "connait" pas la barre fixe quand il
+     calcule un scrollIntoView() (focus sur un champ, ouverture d'un <details>, etc.) —
+     sans ca, un element peut se retrouver scrolle pile sous la barre, invisible ET
+     non cliquable (confirme : le modele de document pouvait finir masque/intercepte
+     par la barre d'actions apres un scroll). Avec scroll-padding-bottom, le navigateur
+     laisse systematiquement cette marge libre en bas lors de tout scroll automatique. */
+  html { scroll-padding-bottom: calc(88px + env(safe-area-inset-bottom)); }
 
   .mobile-actionbar {
     display: grid;
@@ -871,16 +1110,19 @@ input::placeholder { color: var(--gray-light); }
     background: var(--bg);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
-    padding: 14px 44px 14px 14px;
-    margin-bottom: 10px;
+    padding: 12px 40px 12px 12px;
+    margin-bottom: 8px;
   }
 
   .ligne-field {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
   }
+
+  .history-item { padding: 10px 12px; }
+  .history-list { gap: 6px; }
 
   .ligne-field-total { margin-bottom: 0; }
 

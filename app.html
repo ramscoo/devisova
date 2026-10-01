@@ -8,13 +8,17 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lora:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="tokens.css?v=25">
-<link rel="stylesheet" href="style.css?v=26">
+<link rel="stylesheet" href="style.css?v=30">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body>
 
 <header class="topbar no-print">
+  <button type="button" class="account-icon-btn" id="accountBtn" aria-label="Compte">
+    <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg>
+    <span id="accountBtnLabel" class="sr-only">Compte</span>
+  </button>
   <a href="index.html" class="logo">Devis<span>ova</span></a>
   <p class="tagline">Ton devis prêt en 2 minutes, pas en 2 heures.</p>
   <p class="topbar-doc" id="mNumero"></p>
@@ -25,17 +29,21 @@
     <label><input type="radio" name="docType" value="devis" id="typeDevis" checked> Devis</label>
     <label><input type="radio" name="docType" value="facture" id="typeFacture"> Facture</label>
   </div>
-  <select id="savedList">
-    <option value="">— Mes documents enregistrés —</option>
-  </select>
-  <button type="button" class="btn-toolbar" id="newBtn">+ Nouveau</button>
-  <button type="button" class="btn-toolbar" id="duplicateBtn">Dupliquer</button>
+  <div class="toolbar-row2">
+    <div class="doc-picker" id="docPicker">
+      <button type="button" class="doc-picker-trigger" id="docPickerTrigger" aria-haspopup="listbox" aria-expanded="false">
+        <span id="docPickerLabel">— Mes documents enregistrés —</span>
+        <svg class="doc-picker-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="doc-picker-menu" id="docPickerMenu" role="listbox" aria-label="Mes documents" hidden></div>
+    </div>
+    <button type="button" class="btn-toolbar" id="newBtn">+ Nouveau</button>
+  </div>
   <button type="button" class="btn-toolbar" id="convertBtn" style="display:none;">Transformer en facture</button>
   <button type="button" class="btn-toolbar btn-toolbar-primary" id="saveBtn">
     <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
     Enregistrer
   </button>
-  <button type="button" class="btn-toolbar" id="accountBtn">Compte</button>
 </div>
 
 <dialog id="accountDialog" class="account-dialog">
@@ -155,10 +163,29 @@
 
     <h2>Modèle de document</h2>
     <div class="template-picker" role="radiogroup" aria-label="Modèle de document">
-      <label><input type="radio" name="template" value="classic" checked> Classic</label>
-      <label><input type="radio" name="template" value="modern"> Modern</label>
-      <label><input type="radio" name="template" value="elegant"> Elegant</label>
-      <label><input type="radio" name="template" value="minimal"> Minimal</label>
+      <label class="template-card">
+        <input type="radio" name="template" value="classic" checked>
+        <span class="template-card-dot" aria-hidden="true"></span>
+        <span class="template-card-name">Classic</span>
+      </label>
+      <label class="template-card">
+        <input type="radio" name="template" value="modern">
+        <span class="template-card-badge" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Pro</span>
+        <span class="template-card-dot" aria-hidden="true"></span>
+        <span class="template-card-name">Modern</span>
+      </label>
+      <label class="template-card">
+        <input type="radio" name="template" value="elegant">
+        <span class="template-card-badge" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Pro</span>
+        <span class="template-card-dot" aria-hidden="true"></span>
+        <span class="template-card-name">Elegant</span>
+      </label>
+      <label class="template-card">
+        <input type="radio" name="template" value="minimal">
+        <span class="template-card-badge" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Pro</span>
+        <span class="template-card-dot" aria-hidden="true"></span>
+        <span class="template-card-name">Minimal</span>
+      </label>
     </div>
 
     <h2>Historique</h2>
@@ -247,8 +274,8 @@
 </nav>
 
 <script src="supabase-config.js?v=2"></script>
-<script src="auth.js?v=1"></script>
+<script src="auth.js?v=2"></script>
 <script src="storage.js?v=2"></script>
-<script src="script.js?v=26"></script>
+<script src="script.js?v=29"></script>
 </body>
 </html>
