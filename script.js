@@ -495,7 +495,12 @@ function collectState() {
     tva: document.getElementById('tva').value,
     devise: docCurrency(),
     template: docTemplate(),
-    lignes: lignes,
+    // Copie profonde : `lignes` est modifie en place a chaque frappe. Sans copie,
+    // le document enregistre dans le cache du storage partage les MEMES objets que
+    // le formulaire, et le diff cloud (persistDocumentsDiff) compare alors l'ancien
+    // etat avec lui-meme : aucune modification de ligne n'est jamais envoyee a
+    // Supabase apres la 1re sauvegarde.
+    lignes: lignes.map(l => ({ ...l })),
     logoData: logoData,
   };
 }
@@ -517,7 +522,9 @@ function applyState(d) {
   document.getElementById('devise').value = (d.devise && CURRENCIES[d.devise]) ? d.devise : 'EUR';
   const tpl = (d.template && TEMPLATES.includes(d.template)) ? d.template : 'classic';
   document.querySelector(`input[name="template"][value="${tpl}"]`).checked = true;
-  lignes = d.lignes && d.lignes.length ? d.lignes : [{ desc: '', qty: 1, prix: 0, _pristine: true }];
+  // Copie profonde (meme raison que dans collectState) : editer un document charge
+  // ne doit pas modifier en douce sa version enregistree dans le cache.
+  lignes = d.lignes && d.lignes.length ? d.lignes.map(l => ({ ...l })) : [{ desc: '', qty: 1, prix: 0, _pristine: true }];
   logoData = d.logoData || null;
   document.getElementById('logoLabel').textContent = logoData ? "✓ Logo ajouté (cliquer pour changer)" : "+ Ajouter mon logo (optionnel)";
   document.getElementById('pNumero').textContent = d.numero;
@@ -831,6 +838,9 @@ document.getElementById('pdfBtn').addEventListener('click', async () => {
   }
 });
 
+// Dernier PDF genere pour le partage, associe au contenu exact de l'apercu.
+let sharePdfCache = null;
+
 document.getElementById('whatsappBtn').addEventListener('click', async () => {
   const numero = document.getElementById('pNumero').textContent || 'document';
   const type = docType() === 'facture' ? 'Facture' : 'Devis';
@@ -840,47 +850,66 @@ document.getElementById('whatsappBtn').addEventListener('click', async () => {
   const message = `Bonjour ${client}, voici votre ${type.toLowerCase()} ${numero}${entName ? ' de ' + entName : ''} : total ${totalTTC}. N'hésitez pas si vous avez des questions !`;
 
   const waUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+  const shareData = file => ({ files: [file], title: `${type} ${numero}`, text: message });
 
   // Le partage de fichier (avec le PDF) n'est possible que via l'API Web Share du
   // navigateur (menu de partage natif) — un lien wa.me ne peut transporter que du texte.
-  if (!navigator.share || !navigator.canShare) {
+  // On teste cette capacite AVANT tout await (avec un fichier PDF vide, le type suffit) :
+  // si elle manque, on ouvre wa.me tout de suite, encore pendant le geste utilisateur.
+  // (Ne plus pre-ouvrir d'onglet vide "de secours" : sur iPhone, Safari bascule
+  // aussitot sur cet onglet about:blank — la page blanche — et met l'onglet de
+  // l'app en arriere-plan, ou requestAnimationFrame est suspendu : la generation
+  // du PDF reste alors bloquee et le menu de partage n'apparait jamais.)
+  const probe = new File([''], `${numero}.pdf`, { type: 'application/pdf' });
+  if (!navigator.share || !navigator.canShare || !navigator.canShare({ files: [probe] })) {
     window.open(waUrl, '_blank');
     return;
   }
 
-  // On ouvre tout de suite un onglet vide, PENDANT le geste utilisateur (avant tout await) :
-  // si on doit finalement retomber sur le lien texte après la génération asynchrone
-  // du PDF, on redirige CET onglet déjà ouvert plutôt que d'en ouvrir un nouveau —
-  // sinon le navigateur bloque silencieusement le window.open() tardif.
-  const fallbackWindow = window.open('', '_blank');
-  const shareTextOnly = () => {
-    if (fallbackWindow) fallbackWindow.location.href = waUrl;
-    else window.open(waUrl, '_blank');
-  };
+  // PDF deja genere pour exactement ce contenu (2e appui apres un refus de Safari,
+  // voir plus bas) : navigator.share() est appele immediatement, dans le geste.
+  const element = document.getElementById('preview');
+  const contentKey = element.className + element.innerHTML;
+  if (sharePdfCache && sharePdfCache.key === contentKey) {
+    try {
+      await navigator.share(shareData(sharePdfCache.file));
+    } catch (err) {
+      if (!err || err.name !== 'AbortError') showToast('Le partage a échoué. Utilise « PDF » pour télécharger le document.');
+    }
+    return;
+  }
 
   setMobileView('preview');
-  const element = document.getElementById('preview');
   const restoreScroll = resetScrollForCapture();
   const restore = forcePreviewCapturable();
   await waitTwoFrames();
+  let file;
   try {
     const blob = await html2pdf().set(pdfOptions(numero)).from(element).toPdf().get('pdf').then(pdf => { trimEmptyTrailingPage(pdf); return pdf; }).outputPdf('blob');
-    restore();
-    restoreScroll();
-
-    const file = new File([blob], `${numero}.pdf`, { type: 'application/pdf' });
-
-    if (navigator.canShare({ files: [file] })) {
-      if (fallbackWindow) fallbackWindow.close();
-      await navigator.share({ files: [file], title: `${type} ${numero}`, text: message });
-    } else {
-      shareTextOnly();
-    }
+    file = new File([blob], `${numero}.pdf`, { type: 'application/pdf' });
+    sharePdfCache = { key: contentKey, file };
   } catch (err) {
+    console.error('[share] generation PDF', err);
+    showToast('Impossible de générer le PDF. Réessaie.');
+    return;
+  } finally {
     restore();
     restoreScroll();
-    if (err && err.name === 'AbortError') { if (fallbackWindow) fallbackWindow.close(); return; }
-    shareTextOnly();
+  }
+
+  try {
+    await navigator.share(shareData(file));
+  } catch (err) {
+    if (err && err.name === 'AbortError') return; // l'utilisateur a ferme le menu de partage
+    // Safari n'autorise navigator.share() que juste apres un geste utilisateur ; la
+    // generation du PDF peut depasser ce delai (NotAllowedError). Le PDF est garde en
+    // memoire : un 2e appui le partage instantanement, dans un geste neuf.
+    if (err && err.name === 'NotAllowedError') {
+      showToast('PDF prêt — appuie à nouveau sur Partager pour l\'envoyer.');
+      return;
+    }
+    console.error('[share]', err);
+    showToast('Le partage a échoué. Utilise « PDF » pour télécharger le document.');
   }
 });
 
