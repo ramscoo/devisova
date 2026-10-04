@@ -13,9 +13,6 @@ let pendingNewDocId = null;
 // Incremente a chaque changement de document affiche (Nouveau, chargement) :
 // une sauvegarde terminee apres coup ne doit pas "re-rattacher" le formulaire.
 let formGeneration = 0;
-// Document reste ouvert apres un "+ Nouveau" refuse par le quota : la prochaine
-// sauvegarde demande une confirmation explicite avant de le remplacer.
-let quotaBlockedDocId = null;
 
 // ===== Devises =====
 // Structure ouverte : ajouter une devise = ajouter une entrée ici + une <option> dans app.html.
@@ -201,7 +198,6 @@ function renderPreview() {
 
   updateConvertButtonVisibility();
   updateFreeGatingUI();
-  updateDocStatusUI();
 }
 
 // ===== Conversion Devis -> Facture (fonctionnalite Pro) =====
@@ -520,7 +516,6 @@ function collectState() {
 function applyState(d) {
   formGeneration++;
   pendingNewDocId = null;
-  quotaBlockedDocId = null;
   currentId = d.id;
   currentDocDate = d.date || new Date().toISOString();
   document.getElementById('typeDevis').checked = d.type !== 'facture';
@@ -566,28 +561,9 @@ function showToast(message, { variant = '', duration = 2500 } = {}) {
   showToast._t = setTimeout(() => toast.classList.remove('show'), duration);
 }
 
-// ===== Statut du document ouvert : nouveau vs modification d'un document enregistre =====
-// Rend explicite que "Enregistrer" sur un document deja enregistre MET A JOUR ce
-// document (meme numero), et ne cree jamais un nouveau document.
+// Le document affiche est-il deja enregistre ? (interne : creation vs mise a jour)
 function isEditingSavedDocument() {
   return currentId !== null && loadAllSaved().some(d => d.id === currentId);
-}
-
-function updateDocStatusUI() {
-  const editing = isEditingSavedDocument();
-  const numero = document.getElementById('pNumero').textContent;
-  const status = document.getElementById('docStatus');
-  if (status) {
-    status.classList.toggle('doc-status-editing', editing);
-    status.textContent = editing
-      ? `Modification de ${numero} (déjà enregistré) — « Mettre à jour » remplace ce document. Pour un autre document : « + Nouveau ».`
-      : `Nouveau document ${numero} — pas encore enregistré.`;
-  }
-  if (!saveInFlight) {
-    document.querySelectorAll('.save-label').forEach(el => {
-      el.textContent = editing ? 'Mettre à jour' : 'Enregistrer';
-    });
-  }
 }
 
 function setSaveBusy(busy) {
@@ -596,11 +572,12 @@ function setSaveBusy(busy) {
     const btn = document.getElementById(id);
     if (btn) btn.disabled = busy;
   });
-  if (busy) document.querySelectorAll('.save-label').forEach(el => { el.textContent = 'Enregistrement…'; });
-  else updateDocStatusUI();
+  document.querySelectorAll('.save-label').forEach(el => {
+    el.textContent = busy ? 'Enregistrement…' : 'Enregistrer';
+  });
 }
 
-const QUOTA_MESSAGE = 'Limite atteinte : 3 documents ce mois-ci avec l\'offre gratuite. Passe à Pro pour créer des documents sans limite.';
+const QUOTA_MESSAGE = 'Tu as atteint ta limite de 3 documents ce mois-ci. Passe à Pro pour créer des documents illimités.';
 
 document.getElementById('saveBtn').addEventListener('click', async () => {
   if (saveInFlight) return;
@@ -609,15 +586,10 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
   }
   const isNewDocument = !isEditingSavedDocument();
   if (isNewDocument && !DevisovaStorage.canCreateDocument()) {
-    showToast(`${QUOTA_MESSAGE} Ce document n'a PAS été enregistré — ta saisie reste dans le formulaire.`, { variant: 'warning', duration: 8000 });
+    showToast(`${QUOTA_MESSAGE} Ce document n'a pas été enregistré.`, { variant: 'warning', duration: 6000 });
     return;
   }
   const state = collectState();
-  if (!isNewDocument && quotaBlockedDocId === state.id) {
-    const ok = confirm(`Attention : « Nouveau » a été refusé (limite atteinte), aucun nouveau document n'a été créé.\n\nTu es toujours sur ${state.numero}. Continuer va REMPLACER le contenu de ${state.numero}.\n\nRemplacer ${state.numero} ?`);
-    if (!ok) return;
-    quotaBlockedDocId = null;
-  }
   if (isNewDocument) {
     if (!pendingNewDocId) pendingNewDocId = crypto.randomUUID();
     state.id = pendingNewDocId;
@@ -628,7 +600,7 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
   const result = await DevisovaStorage.saveDocument(state);
   setSaveBusy(false);
   if (!result.ok) {
-    showToast(`✗ Échec de l'enregistrement : ${state.numero} n'est PAS enregistré. Vérifie ta connexion puis réessaie — ta saisie est conservée.`, { variant: 'error', duration: 8000 });
+    showToast(`Le document n'a pas été enregistré. Vérifie ta connexion puis réessaie.`, { variant: 'error', duration: 6000 });
     return;
   }
   refreshDocumentsUI();
@@ -640,26 +612,20 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
     setSavedListValue(state.id);
     lastSavedSnapshot = snapshot;
     updateConvertButtonVisibility();
-    updateDocStatusUI();
   }
   showToast(`✓ ${state.type === 'facture' ? 'Facture enregistrée' : 'Devis enregistré'} : ${state.numero}`);
 });
 
 document.getElementById('newBtn').addEventListener('click', () => {
-  if (!confirmDiscard()) return;
+  // Quota verifie AVANT la confirmation "modifications non enregistrees" : au
+  // quota atteint, seul le message s'affiche et le document ouvert reste intact.
   if (!DevisovaStorage.canCreateDocument()) {
-    const numero = document.getElementById('pNumero').textContent;
-    if (isEditingSavedDocument()) {
-      quotaBlockedDocId = currentId;
-      showToast(`${QUOTA_MESSAGE} Aucun nouveau document n'a été créé : tu es toujours sur ${numero} — « Mettre à jour » modifierait ce document.`, { variant: 'warning', duration: 9000 });
-    } else {
-      showToast(`${QUOTA_MESSAGE} Aucun nouveau document n'a été créé.`, { variant: 'warning', duration: 9000 });
-    }
+    showToast(QUOTA_MESSAGE, { variant: 'warning', duration: 6000 });
     return;
   }
+  if (!confirmDiscard()) return;
   formGeneration++;
   pendingNewDocId = null;
-  quotaBlockedDocId = null;
   currentId = null;
   currentDocDate = null;
   logoData = null;

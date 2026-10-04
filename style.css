@@ -251,6 +251,18 @@ input, select {
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
+/* Selects : apparence native retiree (sur iOS, le select natif ignore padding et
+   hauteur et parait plus petit que les champs voisins) + chevron discret. */
+select {
+  -webkit-appearance: none;
+  appearance: none;
+  padding-right: 34px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 12px;
+}
+
 input:hover, select:hover { border-color: var(--gray-light); }
 
 input:focus, select:focus {
@@ -404,23 +416,6 @@ input::placeholder { color: var(--gray-light); }
   display: flex;
   gap: 10px;
   flex: 1 1 100%;
-}
-
-/* ===== Statut du document ouvert (nouveau / modification d'un document enregistre) ===== */
-.doc-status {
-  flex: 1 1 100%;
-  margin: 0;
-  font-size: var(--fs-xs);
-  color: var(--gray);
-}
-.doc-status:empty { display: none; }
-.doc-status-editing {
-  color: #7a3e00;
-  background: #fff4e5;
-  border: 1px solid #f5c98b;
-  border-radius: var(--radius-sm);
-  padding: 6px 10px;
-  font-weight: var(--fw-medium);
 }
 
 /* ===== Sélecteur "Mes documents" : dropdown custom (pas un <select> natif,
@@ -1033,10 +1028,16 @@ input::placeholder { color: var(--gray-light); }
     transition: background-color var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
   }
 
+  /* Onglet actif sobre (carte blanche, texte bleu) plutot qu'un aplat bleu plein. */
+  .mobile-tab {
+    background: transparent;
+    border-color: transparent;
+  }
   .mobile-tab.active {
-    background: var(--blue);
-    border-color: var(--blue);
-    color: white;
+    background: white;
+    border-color: var(--border);
+    color: var(--blue);
+    box-shadow: var(--shadow-sm);
   }
 
   .layout { padding: 0 16px; margin: 12px auto 0; gap: 16px; }
@@ -1073,6 +1074,11 @@ input::placeholder { color: var(--gray-light); }
     font-size: 16px;
     min-height: 44px;
   }
+
+  /* Meme correctif que pour les cartes de modele : la regle min-height ci-dessus
+     ne doit pas gonfler les boutons radio Devis/Facture (bloc inutilement haut). */
+  .doc-type input[type="radio"] { min-height: 0; }
+  .doc-type { padding: 8px 14px; }
 
   .btn-primary, .btn-whatsapp, .btn-secondary, .btn-toolbar, .btn-toolbar-primary, .doc-picker-trigger {
     min-height: 44px;
