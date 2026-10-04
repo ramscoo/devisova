@@ -406,6 +406,23 @@ input::placeholder { color: var(--gray-light); }
   flex: 1 1 100%;
 }
 
+/* ===== Statut du document ouvert (nouveau / modification d'un document enregistre) ===== */
+.doc-status {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: var(--fs-xs);
+  color: var(--gray);
+}
+.doc-status:empty { display: none; }
+.doc-status-editing {
+  color: #7a3e00;
+  background: #fff4e5;
+  border: 1px solid #f5c98b;
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-weight: var(--fw-medium);
+}
+
 /* ===== Sélecteur "Mes documents" : dropdown custom (pas un <select> natif,
    dont le picker iOS plein écran/texte énorme n'est pas stylable) ===== */
 .doc-picker {
@@ -886,6 +903,17 @@ input::placeholder { color: var(--gray-light); }
   transform: translateX(-50%) translateY(0);
 }
 
+/* Largeur naturelle (sinon left:50% limite le toast a une colonne etroite)
+   et variantes pour les messages importants (quota, echec de sauvegarde). */
+.toast {
+  width: max-content;
+  max-width: min(calc(100vw - 32px), 440px);
+  text-align: center;
+  line-height: 1.4;
+}
+.toast.toast-warning { background: #9a4a00; }
+.toast.toast-error { background: #b42318; }
+
 /* ===== Compte (dialog Supabase Auth) ===== */
 .account-dialog {
   position: relative;
@@ -1096,6 +1124,10 @@ input::placeholder { color: var(--gray-light); }
 
   .mobile-action:hover, .mobile-action:active { background: var(--bg); }
   .mobile-action-icon { width: 20px; height: 20px; }
+  .mobile-action:disabled { opacity: 0.6; }
+
+  /* Toast au-dessus de la barre d'actions fixe (et non par-dessus ses boutons). */
+  .toast { bottom: calc(80px + env(safe-area-inset-bottom)); }
 }
 
 /* ===================================================

@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lora:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="tokens.css?v=25">
-<link rel="stylesheet" href="style.css?v=30">
+<link rel="stylesheet" href="style.css?v=31">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
@@ -32,17 +32,18 @@
   <div class="toolbar-row2">
     <div class="doc-picker" id="docPicker">
       <button type="button" class="doc-picker-trigger" id="docPickerTrigger" aria-haspopup="listbox" aria-expanded="false">
-        <span id="docPickerLabel">— Mes documents enregistrés —</span>
+        <span id="docPickerLabel">Mes documents</span>
         <svg class="doc-picker-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <div class="doc-picker-menu" id="docPickerMenu" role="listbox" aria-label="Mes documents" hidden></div>
     </div>
     <button type="button" class="btn-toolbar" id="newBtn">+ Nouveau</button>
   </div>
+  <p class="doc-status" id="docStatus" role="status"></p>
   <button type="button" class="btn-toolbar" id="convertBtn" style="display:none;">Transformer en facture</button>
   <button type="button" class="btn-toolbar btn-toolbar-primary" id="saveBtn">
     <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
-    Enregistrer
+    <span class="save-label">Enregistrer</span>
   </button>
 </div>
 
@@ -190,7 +191,7 @@
 
     <h2>Historique</h2>
     <details class="history-panel">
-      <summary>Voir mes documents enregistrés</summary>
+      <summary>Voir mes documents</summary>
       <div id="historyList" class="history-list"></div>
     </details>
 
@@ -257,7 +258,7 @@
 <nav class="mobile-actionbar no-print" aria-label="Actions rapides">
   <button type="button" class="mobile-action" id="mSaveBtn" aria-label="Enregistrer">
     <svg class="mobile-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2Z"/><path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
-    <span>Enregistrer</span>
+    <span class="save-label">Enregistrer</span>
   </button>
   <button type="button" class="mobile-action" id="mPrintBtn" aria-label="Imprimer">
     <svg class="mobile-action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
@@ -275,7 +276,7 @@
 
 <script src="supabase-config.js?v=2"></script>
 <script src="auth.js?v=2"></script>
-<script src="storage.js?v=2"></script>
-<script src="script.js?v=30"></script>
+<script src="storage.js?v=3"></script>
+<script src="script.js?v=32"></script>
 </body>
 </html>

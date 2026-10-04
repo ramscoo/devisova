@@ -5,6 +5,17 @@ let logoData = null;
 let currentId = null;
 let currentDocDate = null;
 let lastSavedSnapshot = '';
+let saveInFlight = false;
+// Id reserve pour un NOUVEAU document tant qu'il n'est pas confirme comme
+// enregistre : une nouvelle tentative apres un echec reutilise le meme id
+// (upsert), donc jamais de doublon meme si le 1er envoi avait en fait abouti.
+let pendingNewDocId = null;
+// Incremente a chaque changement de document affiche (Nouveau, chargement) :
+// une sauvegarde terminee apres coup ne doit pas "re-rattacher" le formulaire.
+let formGeneration = 0;
+// Document reste ouvert apres un "+ Nouveau" refuse par le quota : la prochaine
+// sauvegarde demande une confirmation explicite avant de le remplacer.
+let quotaBlockedDocId = null;
 
 // ===== Devises =====
 // Structure ouverte : ajouter une devise = ajouter une entrée ici + une <option> dans app.html.
@@ -190,6 +201,7 @@ function renderPreview() {
 
   updateConvertButtonVisibility();
   updateFreeGatingUI();
+  updateDocStatusUI();
 }
 
 // ===== Conversion Devis -> Facture (fonctionnalite Pro) =====
@@ -368,7 +380,7 @@ function refreshDocPickerLabel() {
   const label = document.getElementById('docPickerLabel');
   if (!label) return;
   const doc = selectedDocId ? loadAllSaved().find(d => d.id === selectedDocId) : null;
-  label.textContent = doc ? docPickerOptionLabel(doc) : '— Mes documents enregistrés —';
+  label.textContent = doc ? docPickerOptionLabel(doc) : 'Mes documents';
 }
 
 // Point d'entree unique pour marquer un document comme "actuellement charge"
@@ -506,6 +518,9 @@ function collectState() {
 }
 
 function applyState(d) {
+  formGeneration++;
+  pendingNewDocId = null;
+  quotaBlockedDocId = null;
   currentId = d.id;
   currentDocDate = d.date || new Date().toISOString();
   document.getElementById('typeDevis').checked = d.type !== 'facture';
@@ -532,49 +547,119 @@ function applyState(d) {
   renderPreview();
 }
 
-function showToast(message) {
+// variant : '' (info), 'warning' (quota/attention) ou 'error'. Les messages
+// importants restent affiches plus longtemps que la confirmation standard.
+function showToast(message, { variant = '', duration = 2500 } = {}) {
   let toast = document.getElementById('toast');
   if (!toast) {
     toast = document.createElement('div');
     toast.id = 'toast';
     toast.className = 'toast';
+    toast.setAttribute('role', 'status');
     document.body.appendChild(toast);
   }
   toast.textContent = message;
+  toast.classList.toggle('toast-warning', variant === 'warning');
+  toast.classList.toggle('toast-error', variant === 'error');
   toast.classList.add('show');
   clearTimeout(showToast._t);
-  showToast._t = setTimeout(() => toast.classList.remove('show'), 2500);
+  showToast._t = setTimeout(() => toast.classList.remove('show'), duration);
 }
 
-document.getElementById('saveBtn').addEventListener('click', () => {
+// ===== Statut du document ouvert : nouveau vs modification d'un document enregistre =====
+// Rend explicite que "Enregistrer" sur un document deja enregistre MET A JOUR ce
+// document (meme numero), et ne cree jamais un nouveau document.
+function isEditingSavedDocument() {
+  return currentId !== null && loadAllSaved().some(d => d.id === currentId);
+}
+
+function updateDocStatusUI() {
+  const editing = isEditingSavedDocument();
+  const numero = document.getElementById('pNumero').textContent;
+  const status = document.getElementById('docStatus');
+  if (status) {
+    status.classList.toggle('doc-status-editing', editing);
+    status.textContent = editing
+      ? `Modification de ${numero} (déjà enregistré) — « Mettre à jour » remplace ce document. Pour un autre document : « + Nouveau ».`
+      : `Nouveau document ${numero} — pas encore enregistré.`;
+  }
+  if (!saveInFlight) {
+    document.querySelectorAll('.save-label').forEach(el => {
+      el.textContent = editing ? 'Mettre à jour' : 'Enregistrer';
+    });
+  }
+}
+
+function setSaveBusy(busy) {
+  saveInFlight = busy;
+  ['saveBtn', 'mSaveBtn'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) btn.disabled = busy;
+  });
+  if (busy) document.querySelectorAll('.save-label').forEach(el => { el.textContent = 'Enregistrement…'; });
+  else updateDocStatusUI();
+}
+
+const QUOTA_MESSAGE = 'Limite atteinte : 3 documents ce mois-ci avec l\'offre gratuite. Passe à Pro pour créer des documents sans limite.';
+
+document.getElementById('saveBtn').addEventListener('click', async () => {
+  if (saveInFlight) return;
   if (!document.getElementById('pNumero').textContent) {
     document.getElementById('pNumero').textContent = nextNumero(docType());
   }
-  const state = collectState();
-  const all = loadAllSaved();
-  const idx = all.findIndex(d => d.id === state.id);
-  const isNewDocument = idx < 0;
+  const isNewDocument = !isEditingSavedDocument();
   if (isNewDocument && !DevisovaStorage.canCreateDocument()) {
-    showToast('Tu as atteint la limite de 3 documents ce mois-ci. Passe à Pro pour créer des documents sans limite.');
+    showToast(`${QUOTA_MESSAGE} Ce document n'a PAS été enregistré — ta saisie reste dans le formulaire.`, { variant: 'warning', duration: 8000 });
     return;
   }
-  currentId = state.id;
-  currentDocDate = state.date;
-  if (idx >= 0) all[idx] = state; else all.push(state);
-  saveAllSaved(all);
+  const state = collectState();
+  if (!isNewDocument && quotaBlockedDocId === state.id) {
+    const ok = confirm(`Attention : « Nouveau » a été refusé (limite atteinte), aucun nouveau document n'a été créé.\n\nTu es toujours sur ${state.numero}. Continuer va REMPLACER le contenu de ${state.numero}.\n\nRemplacer ${state.numero} ?`);
+    if (!ok) return;
+    quotaBlockedDocId = null;
+  }
+  if (isNewDocument) {
+    if (!pendingNewDocId) pendingNewDocId = crypto.randomUUID();
+    state.id = pendingNewDocId;
+  }
+  const generation = formGeneration;
+  const snapshot = snapshotForComparison();
+  setSaveBusy(true);
+  const result = await DevisovaStorage.saveDocument(state);
+  setSaveBusy(false);
+  if (!result.ok) {
+    showToast(`✗ Échec de l'enregistrement : ${state.numero} n'est PAS enregistré. Vérifie ta connexion puis réessaie — ta saisie est conservée.`, { variant: 'error', duration: 8000 });
+    return;
+  }
   refreshDocumentsUI();
-  setSavedListValue(state.id);
-  showToast(`✓ ${state.type === 'facture' ? 'Facture' : 'Devis'} enregistré : ${state.numero}`);
-  markSnapshotClean();
-  updateConvertButtonVisibility();
+  if (generation === formGeneration) {
+    // Le formulaire affiche toujours ce document : il devient "le document ouvert".
+    currentId = state.id;
+    currentDocDate = state.date;
+    pendingNewDocId = null;
+    setSavedListValue(state.id);
+    lastSavedSnapshot = snapshot;
+    updateConvertButtonVisibility();
+    updateDocStatusUI();
+  }
+  showToast(`✓ ${state.type === 'facture' ? 'Facture enregistrée' : 'Devis enregistré'} : ${state.numero}`);
 });
 
 document.getElementById('newBtn').addEventListener('click', () => {
   if (!confirmDiscard()) return;
   if (!DevisovaStorage.canCreateDocument()) {
-    showToast('Tu as atteint la limite de 3 documents ce mois-ci. Passe à Pro pour créer des documents sans limite.');
+    const numero = document.getElementById('pNumero').textContent;
+    if (isEditingSavedDocument()) {
+      quotaBlockedDocId = currentId;
+      showToast(`${QUOTA_MESSAGE} Aucun nouveau document n'a été créé : tu es toujours sur ${numero} — « Mettre à jour » modifierait ce document.`, { variant: 'warning', duration: 9000 });
+    } else {
+      showToast(`${QUOTA_MESSAGE} Aucun nouveau document n'a été créé.`, { variant: 'warning', duration: 9000 });
+    }
     return;
   }
+  formGeneration++;
+  pendingNewDocId = null;
+  quotaBlockedDocId = null;
   currentId = null;
   currentDocDate = null;
   logoData = null;

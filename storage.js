@@ -498,6 +498,40 @@ function setDocuments(newArr) {
   }
 }
 
+// Sauvegarde UNITAIRE d'un document, avec confirmation reelle (bouton
+// "Enregistrer"). Contrairement a setDocuments() (fire-and-forget), on attend
+// la reponse de Supabase / l'ecriture localStorage, et le cache en memoire
+// (donc l'historique et "Mes documents") n'est mis a jour QU'APRES reussite :
+// un echec ne laisse jamais un document affiche comme enregistre.
+// Upsert par id : une nouvelle tentative avec le meme id ne cree pas de doublon.
+// Renvoie { ok: true } ou { ok: false, error }.
+async function saveDocument(doc) {
+  const saved = JSON.parse(JSON.stringify(doc)); // copie isolee du formulaire
+  const withDoc = (arr) => {
+    const next = arr.slice();
+    const i = next.findIndex((d) => d.id === saved.id);
+    if (i >= 0) next[i] = saved; else next.push(saved);
+    return next;
+  };
+  try {
+    if (isAuthenticatedMode()) {
+      const { error } = await cloudUpsertDocument(saved);
+      if (error) {
+        console.error('[storage] echec sauvegarde document', saved.id, error);
+        return { ok: false, error };
+      }
+    } else {
+      localSaveDocuments(withDoc(_documentsCache)); // peut lever (ex. QuotaExceededError)
+    }
+  } catch (error) {
+    console.error('[storage] echec sauvegarde document', saved.id, error);
+    return { ok: false, error };
+  }
+  // Recalcule a partir du cache COURANT (il a pu changer pendant l'await reseau).
+  _documentsCache = withDoc(_documentsCache);
+  return { ok: true };
+}
+
 function getClients() { return _clientsCache.slice(); }
 function setClients(newArr) {
   const oldArr = _clientsCache;
@@ -523,6 +557,7 @@ window.DevisovaStorage = {
   ready: _readyPromise,
   getDocuments,
   setDocuments,
+  saveDocument,
   getClients,
   setClients,
   getProfile,
