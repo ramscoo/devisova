@@ -577,7 +577,7 @@ function setSaveBusy(busy) {
   });
 }
 
-const QUOTA_MESSAGE = 'Tu as atteint ta limite de 3 documents ce mois-ci. Passe à Pro pour créer des documents illimités.';
+const QUOTA_MESSAGE = 'Limite atteinte : 3 documents ce mois-ci. Passe à Pro pour en créer davantage.';
 
 document.getElementById('saveBtn').addEventListener('click', async () => {
   if (saveInFlight) return;
