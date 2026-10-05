@@ -109,15 +109,42 @@ function renderForm() {
 }
 
 // ===== Logo =====
+// Le logo n'est jamais affiche a plus de 60x60px (.devis-logo) : une photo
+// envoyee telle quelle (plusieurs Mo en base64) sature vite les ~5 Mo de
+// quota localStorage (anonyme), car elle est dupliquee dans CHAQUE document
+// sauvegarde. On la redimensionne donc cote client avant de la stocker —
+// largement suffisant pour l'affichage et l'impression PDF.
+const LOGO_MAX_DIMENSION = 240;
+
+function applyLogo(dataUrl) {
+  logoData = dataUrl;
+  document.getElementById('logoLabel').textContent = "✓ Logo ajouté (cliquer pour changer)";
+  maybeSaveProfile();
+  renderPreview();
+}
+
 document.getElementById('logoInput').addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (!file) return;
   const reader = new FileReader();
   reader.onload = (ev) => {
-    logoData = ev.target.result;
-    document.getElementById('logoLabel').textContent = "✓ Logo ajouté (cliquer pour changer)";
-    maybeSaveProfile();
-    renderPreview();
+    const original = ev.target.result;
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > LOGO_MAX_DIMENSION || height > LOGO_MAX_DIMENSION) {
+        const scale = LOGO_MAX_DIMENSION / Math.max(width, height);
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      applyLogo(canvas.toDataURL('image/png'));
+    };
+    img.onerror = () => applyLogo(original); // decodage impossible : on garde l'original plutot que de bloquer
+    img.src = original;
   };
   reader.readAsDataURL(file);
 });
@@ -554,7 +581,11 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
   const result = await DevisovaStorage.saveDocument(state);
   setSaveBusy(false);
   if (!result.ok) {
-    showToast(`Le document n'a pas été enregistré. Vérifie ta connexion puis réessaie.`, { variant: 'error', duration: 6000 });
+    if (result.error && result.error.name === 'QuotaExceededError') {
+      showToast(`Stockage local plein : libère de la place (supprime un ancien document) puis réessaie.`, { variant: 'error', duration: 7000 });
+    } else {
+      showToast(`Le document n'a pas été enregistré. Vérifie ta connexion puis réessaie.`, { variant: 'error', duration: 6000 });
+    }
     return;
   }
   refreshDocumentsUI();
