@@ -65,15 +65,15 @@ function renderForm() {
     row.innerHTML = `
       <div class="ligne-field ligne-field-desc">
         <span class="ligne-field-label">Description</span>
-        <input type="text" value="${l.desc}" data-i="${i}" data-field="desc" placeholder="Ex. Pose de carrelage" aria-label="Description de la prestation">
+        <input type="text" autocomplete="off" value="${l.desc}" data-i="${i}" data-field="desc" placeholder="Ex. Pose de carrelage" aria-label="Description de la prestation">
       </div>
       <div class="ligne-field ligne-field-qty">
         <span class="ligne-field-label">Qté</span>
-        <input type="text" inputmode="decimal" value="${qtyValue}" data-i="${i}" data-field="qty" placeholder="1" aria-label="Quantité">
+        <input type="text" inputmode="decimal" autocomplete="off" value="${qtyValue}" data-i="${i}" data-field="qty" placeholder="1" aria-label="Quantité">
       </div>
       <div class="ligne-field ligne-field-prix">
         <span class="ligne-field-label">Prix HT</span>
-        <input type="text" inputmode="decimal" value="${prixValue}" data-i="${i}" data-field="prix" placeholder="0,00" aria-label="Prix unitaire HT">
+        <input type="text" inputmode="decimal" autocomplete="off" value="${prixValue}" data-i="${i}" data-field="prix" placeholder="0,00" aria-label="Prix unitaire HT">
       </div>
       <div class="ligne-field ligne-field-total">
         <span class="ligne-field-label">Total</span>
@@ -82,6 +82,14 @@ function renderForm() {
       <button type="button" class="remove-ligne" data-i="${i}" aria-label="Supprimer cette ligne">×</button>
     `;
     container.appendChild(row);
+    // Safari/WebKit restaure parfois, apres un innerHTML qui recree un <input>
+    // au meme endroit (ex. "+ Nouveau" juste apres avoir tape dans la ligne
+    // precedente), la derniere valeur tapee — meme avec value="" et
+    // autocomplete="off" dans le HTML. On reaffirme donc la valeur reelle
+    // explicitement en JS juste apres l'insertion, qui elle est toujours fiable.
+    row.querySelector('[data-field="desc"]').value = l.desc;
+    row.querySelector('[data-field="qty"]').value = qtyValue;
+    row.querySelector('[data-field="prix"]').value = prixValue;
   });
 
   container.querySelectorAll('input').forEach(inp => {
@@ -116,9 +124,16 @@ function renderForm() {
 // largement suffisant pour l'affichage et l'impression PDF.
 const LOGO_MAX_DIMENSION = 240;
 
+// Point d'entree unique pour synchroniser le libelle + le bouton "Supprimer le
+// logo" sur l'etat reel de `logoData`, appele partout ou logoData change.
+function updateLogoUI() {
+  document.getElementById('logoLabel').textContent = logoData ? "✓ Logo ajouté (cliquer pour changer)" : "+ Ajouter mon logo (optionnel)";
+  document.getElementById('removeLogoBtn').hidden = !logoData;
+}
+
 function applyLogo(dataUrl) {
   logoData = dataUrl;
-  document.getElementById('logoLabel').textContent = "✓ Logo ajouté (cliquer pour changer)";
+  updateLogoUI();
   maybeSaveProfile();
   renderPreview();
 }
@@ -147,6 +162,14 @@ document.getElementById('logoInput').addEventListener('change', (e) => {
     img.src = original;
   };
   reader.readAsDataURL(file);
+});
+
+document.getElementById('removeLogoBtn').addEventListener('click', () => {
+  logoData = null;
+  document.getElementById('logoInput').value = ''; // permet de re-selectionner le meme fichier ensuite
+  updateLogoUI();
+  maybeSaveProfile();
+  renderPreview();
 });
 
 // ===== Aperçu =====
@@ -295,7 +318,7 @@ function applyProfile(profile) {
   document.getElementById('entTel').value = profile.entTel || '';
   document.getElementById('entEmail').value = profile.entEmail || '';
   logoData = profile.logoData || null;
-  document.getElementById('logoLabel').textContent = logoData ? "✓ Logo ajouté (cliquer pour changer)" : "+ Ajouter mon logo (optionnel)";
+  updateLogoUI();
 }
 
 // On ne mémorise le profil que lorsqu'on est sur un document neuf (jamais chargé depuis
@@ -315,6 +338,12 @@ function saveClients(arr) {
   DevisovaStorage.setClients(arr);
 }
 
+function updateDeleteClientBtnVisibility() {
+  const btn = document.getElementById('deleteClientBtn');
+  const select = document.getElementById('clientPicker');
+  if (btn) btn.hidden = !select.value;
+}
+
 function refreshClientPicker() {
   const select = document.getElementById('clientPicker');
   const current = select.value;
@@ -327,9 +356,11 @@ function refreshClientPicker() {
     select.appendChild(opt);
   });
   select.value = clients.some(c => c.id === current) ? current : '';
+  updateDeleteClientBtnVisibility();
 }
 
 document.getElementById('clientPicker').addEventListener('change', (e) => {
+  updateDeleteClientBtnVisibility();
   if (!e.target.value) return;
   const client = loadClients().find(c => c.id === e.target.value);
   if (!client) return;
@@ -352,6 +383,23 @@ document.getElementById('saveClientBtn').addEventListener('click', () => {
   saveClients(clients);
   refreshClientPicker();
   showToast(`✓ Client enregistré : ${nom}`);
+});
+
+document.getElementById('deleteClientBtn').addEventListener('click', () => {
+  const select = document.getElementById('clientPicker');
+  const id = select.value;
+  if (!id) return;
+  const client = loadClients().find(c => c.id === id);
+  if (!client) return;
+  // Les documents deja enregistres gardent leurs propres cliName/cliAdresse
+  // (copies au moment de la sauvegarde, jamais une reference vers la fiche
+  // client) : les supprimer de la liste des clients enregistres ne les
+  // modifie pas — cf. collectState()/applyState().
+  if (!confirm(`Supprimer le client "${client.nom}" ? Les documents déjà enregistrés ne seront pas modifiés.`)) return;
+  const remaining = loadClients().filter(c => c.id !== id);
+  saveClients(remaining);
+  refreshClientPicker();
+  showToast(`✓ Client supprimé : ${client.nom}`);
 });
 
 // ===== Protection contre la perte de données non enregistrées =====
@@ -446,16 +494,26 @@ function refreshSavedList() {
     menu.appendChild(empty);
   } else {
     all.forEach(d => {
-      const opt = document.createElement('button');
-      opt.type = 'button';
+      const label = docPickerOptionLabel(d);
+      const opt = document.createElement('div');
       opt.className = 'doc-picker-option';
       opt.setAttribute('role', 'option');
       opt.dataset.id = d.id;
-      opt.textContent = docPickerOptionLabel(d);
       if (d.id === selectedDocId) {
         opt.classList.add('selected');
         opt.setAttribute('aria-selected', 'true');
       }
+      const openBtn = document.createElement('button');
+      openBtn.type = 'button';
+      openBtn.className = 'doc-picker-option-open';
+      openBtn.textContent = label;
+      opt.appendChild(openBtn);
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'doc-picker-option-delete';
+      delBtn.setAttribute('aria-label', `Supprimer ${label}`);
+      delBtn.textContent = '×';
+      opt.appendChild(delBtn);
       menu.appendChild(opt);
     });
   }
@@ -466,6 +524,27 @@ function refreshSavedList() {
 // (sauvegarde, duplication...) pour garder la liste déroulante "Mes documents" synchronisée.
 function refreshDocumentsUI() {
   refreshSavedList();
+}
+
+function deleteDocumentById(id) {
+  const doc = loadAllSaved().find(d => d.id === id);
+  if (!doc) return;
+  if (!confirm(`Supprimer définitivement ${docPickerOptionLabel(doc)} ?`)) return;
+  const all = loadAllSaved().filter(d => d.id !== id);
+  saveAllSaved(all);
+  if (currentId === id) {
+    // Le document ouvert vient d'être supprimé : on le détache de tout id
+    // enregistré (le contenu reste affiché, éditable comme un brouillon neuf,
+    // sans l'effacer sous les yeux de l'utilisateur) plutôt que de planter.
+    currentId = null;
+    currentDocDate = null;
+    pendingNewDocId = null;
+    formGeneration++;
+    setSavedListValue('');
+    markSnapshotClean();
+  }
+  refreshDocumentsUI();
+  showToast(`✓ Document supprimé : ${doc.numero}`);
 }
 
 function collectState() {
@@ -509,6 +588,7 @@ function applyState(d) {
   document.getElementById('cliName').value = d.cliName || '';
   document.getElementById('cliAdresse').value = d.cliAdresse || '';
   document.getElementById('clientPicker').value = '';
+  updateDeleteClientBtnVisibility();
   document.getElementById('tva').value = d.tva || '20';
   document.getElementById('devise').value = (d.devise && CURRENCIES[d.devise]) ? d.devise : 'EUR';
   const tpl = (d.template && TEMPLATES.includes(d.template)) ? d.template : 'classic';
@@ -517,7 +597,7 @@ function applyState(d) {
   // ne doit pas modifier en douce sa version enregistree dans le cache.
   lignes = d.lignes && d.lignes.length ? d.lignes.map(l => ({ ...l })) : [{ desc: '', qty: 1, prix: 0, _pristine: true }];
   logoData = d.logoData || null;
-  document.getElementById('logoLabel').textContent = logoData ? "✓ Logo ajouté (cliquer pour changer)" : "+ Ajouter mon logo (optionnel)";
+  updateLogoUI();
   document.getElementById('pNumero').textContent = d.numero;
   renderForm();
   renderPreview();
@@ -623,7 +703,8 @@ document.getElementById('newBtn').addEventListener('click', () => {
   document.getElementById('cliName').value = '';
   document.getElementById('cliAdresse').value = '';
   document.getElementById('clientPicker').value = '';
-  document.getElementById('logoLabel').textContent = "+ Ajouter mon logo (optionnel)";
+  updateDeleteClientBtnVisibility();
+  updateLogoUI();
   setSavedListValue('');
   document.getElementById('typeDevis').checked = true;
   document.getElementById('typeFacture').checked = false;
@@ -702,6 +783,12 @@ document.getElementById('docPickerTrigger').addEventListener('click', (e) => {
 });
 
 document.getElementById('docPickerMenu').addEventListener('click', (e) => {
+  const delBtn = e.target.closest('.doc-picker-option-delete');
+  if (delBtn) {
+    const id = delBtn.closest('.doc-picker-option') && delBtn.closest('.doc-picker-option').dataset.id;
+    if (id) deleteDocumentById(id);
+    return;
+  }
   const opt = e.target.closest('.doc-picker-option');
   closeDocPicker();
   if (!opt || !opt.dataset.id) return;
@@ -859,9 +946,8 @@ document.getElementById('printBtn').addEventListener('click', async () => {
   window.print();
 });
 
-document.getElementById('pdfBtn').addEventListener('click', async () => {
+async function downloadPdf(numero) {
   setMobileView('preview');
-  const numero = document.getElementById('pNumero').textContent || 'document';
   const element = document.getElementById('preview');
   const restoreScroll = resetScrollForCapture();
   const restorePreview = forcePreviewCapturable();
@@ -872,10 +958,22 @@ document.getElementById('pdfBtn').addEventListener('click', async () => {
     restorePreview();
     restoreScroll();
   }
+}
+
+document.getElementById('pdfBtn').addEventListener('click', async () => {
+  const numero = document.getElementById('pNumero').textContent || 'document';
+  await downloadPdf(numero);
 });
 
 // Dernier PDF genere pour le partage, associe au contenu exact de l'apercu.
 let sharePdfCache = null;
+
+// Souris/trackpad (Mac, PC) vs ecran tactile (iPhone, Android, iPad sans
+// pointeur externe) : signal standard de capacite d'affichage (CSS Media
+// Queries), pas un sniff d'User-Agent fragile.
+function isDesktopPointer() {
+  return !!(window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches);
+}
 
 document.getElementById('whatsappBtn').addEventListener('click', async () => {
   const numero = document.getElementById('pNumero').textContent || 'document';
@@ -887,6 +985,21 @@ document.getElementById('whatsappBtn').addEventListener('click', async () => {
 
   const waUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
   const shareData = file => ({ files: [file], title: `${type} ${numero}`, text: message });
+
+  // Desktop (souris/trackpad) : le menu de partage natif du systeme (AirDrop,
+  // Messages, Notes...) n'inclut WhatsApp que si l'app WhatsApp Desktop et son
+  // extension de partage macOS sont installees — rarement le cas. wa.me
+  // (WhatsApp Web) ne peut transporter qu'un texte, jamais un fichier joint
+  // (aucune API publique pour ca, et on ne contourne pas cette limite avec un
+  // hack fragile) : on ouvre donc wa.me immediatement (dans le geste, avant
+  // tout await, pour ne pas etre bloque comme pop-up), PUIS on telecharge le
+  // vrai PDF, et on explique clairement l'etape manuelle a l'utilisateur.
+  if (isDesktopPointer()) {
+    window.open(waUrl, '_blank');
+    await downloadPdf(numero);
+    showToast('PDF téléchargé — ouvre la conversation WhatsApp et joins le fichier.', { duration: 6000 });
+    return;
+  }
 
   // Le partage de fichier (avec le PDF) n'est possible que via l'API Web Share du
   // navigateur (menu de partage natif) — un lien wa.me ne peut transporter que du texte.

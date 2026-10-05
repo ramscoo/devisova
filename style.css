@@ -486,23 +486,15 @@ input::placeholder { color: var(--gray-light); }
 .doc-picker-menu[hidden] { display: none; }
 
 .doc-picker-option {
-  display: block;
+  display: flex;
+  align-items: center;
   width: 100%;
-  min-height: 44px;
-  text-align: left;
-  background: none;
-  border: none;
   border-radius: var(--radius-sm);
-  padding: 12px 10px;
-  font-family: var(--font-sans);
-  font-size: var(--fs-sm);
   color: var(--dark);
-  cursor: pointer;
 }
 
-.doc-picker-option:hover, .doc-picker-option:focus-visible {
+.doc-picker-option:hover, .doc-picker-option:focus-within {
   background: var(--bg);
-  outline: none;
 }
 
 .doc-picker-option.selected {
@@ -510,6 +502,42 @@ input::placeholder { color: var(--gray-light); }
   color: var(--blue);
   font-weight: var(--fw-semibold);
 }
+
+.doc-picker-option-open {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 44px;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 12px 10px;
+  font-family: var(--font-sans);
+  font-size: var(--fs-sm);
+  color: inherit;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc-picker-option-open:focus-visible { outline: none; }
+
+.doc-picker-option-delete {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--danger);
+  font-size: 18px;
+  line-height: 1;
+  width: 36px;
+  height: 36px;
+  margin-right: 6px;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.doc-picker-option-delete:hover { background: #FBEAE6; }
 
 .doc-picker-empty {
   padding: 10px;
@@ -556,6 +584,42 @@ input::placeholder { color: var(--gray-light); }
 
 .logo-upload input { display: none; }
 
+.link-delete {
+  display: block;
+  background: none;
+  border: none;
+  padding: 4px 2px;
+  margin-bottom: 4px;
+  font-size: 12px;
+  font-weight: var(--fw-medium);
+  color: var(--danger);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.link-delete:hover { opacity: 0.8; }
+
+.link-delete[hidden] { display: none; }
+
+/* ===== Client enregistré (sélecteur + suppression) ===== */
+.client-picker-row { display: flex; gap: 8px; align-items: center; }
+.client-picker-row select { flex: 1 1 auto; min-width: 0; }
+
+.client-delete-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--danger);
+  font-size: 20px;
+  line-height: 1;
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.client-delete-btn:hover { background: #FBEAE6; }
 
 /* ===== Aperçu devis ===== */
 .preview-panel {

@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lora:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="tokens.css?v=25">
-<link rel="stylesheet" href="style.css?v=33">
+<link rel="stylesheet" href="style.css?v=34">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
@@ -112,13 +112,17 @@
       <span id="logoLabel">+ Ajouter mon logo (optionnel)</span>
       <input type="file" id="logoInput" accept="image/*">
     </label>
+    <button type="button" class="link-delete" id="removeLogoBtn" hidden>Supprimer le logo</button>
 
     <h2>Client</h2>
     <div class="field">
       <label for="clientPicker">Client enregistré</label>
-      <select id="clientPicker">
-        <option value="">— Nouveau client —</option>
-      </select>
+      <div class="client-picker-row">
+        <select id="clientPicker">
+          <option value="">— Nouveau client —</option>
+        </select>
+        <button type="button" class="client-delete-btn" id="deleteClientBtn" aria-label="Supprimer ce client" hidden>×</button>
+      </div>
     </div>
     <div class="grid-2">
       <div class="field span-2">
@@ -270,6 +274,6 @@
 <script src="supabase-config.js?v=2"></script>
 <script src="auth.js?v=2"></script>
 <script src="storage.js?v=3"></script>
-<script src="script.js?v=36"></script>
+<script src="script.js?v=37"></script>
 </body>
 </html>
