@@ -435,56 +435,10 @@ function refreshSavedList() {
   refreshDocPickerLabel();
 }
 
-function docTotalTTC(d) {
-  const totalHT = (d.lignes || []).reduce((sum, l) => sum + (l.qty || 0) * (l.prix || 0), 0);
-  const tva = parseFloat(d.tva) || 0;
-  return totalHT * (1 + tva / 100);
-}
-
-function renderHistory() {
-  const container = document.getElementById('historyList');
-  const all = loadAllSaved();
-  container.innerHTML = '';
-  if (!all.length) {
-    container.innerHTML = '<p class="history-empty">Aucun document enregistré pour l\'instant.</p>';
-    return;
-  }
-  all.slice().reverse().forEach(d => {
-    const dateLabel = d.date ? new Date(d.date).toLocaleDateString('fr-FR') : '—';
-    const row = document.createElement('button');
-    row.type = 'button';
-    row.className = 'history-item';
-    row.dataset.id = d.id;
-    row.innerHTML = `
-      <div class="history-main">
-        <span class="history-numero">${d.numero}</span>
-        <span class="history-type">${d.type === 'facture' ? 'Facture' : 'Devis'}</span>
-      </div>
-      <div class="history-client">${d.cliName || 'Sans client'}</div>
-      <div class="history-meta">
-        <span>${dateLabel}</span>
-        <span class="history-total">${fmt(docTotalTTC(d), d.devise || 'EUR')}</span>
-      </div>
-    `;
-    container.appendChild(row);
-  });
-  container.querySelectorAll('.history-item').forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (!confirmDiscard()) return;
-      const doc = loadAllSaved().find(x => x.id === btn.dataset.id);
-      if (!doc) return;
-      applyState(doc);
-      setSavedListValue(doc.id);
-      markSnapshotClean();
-    });
-  });
-}
-
 // Point d'entrée unique à appeler chaque fois que la liste des documents change
-// (sauvegarde, duplication...) pour garder la liste déroulante et l'historique synchronisés.
+// (sauvegarde, duplication...) pour garder la liste déroulante "Mes documents" synchronisée.
 function refreshDocumentsUI() {
   refreshSavedList();
-  renderHistory();
 }
 
 function collectState() {
