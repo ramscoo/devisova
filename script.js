@@ -968,6 +968,11 @@ document.getElementById('pdfBtn').addEventListener('click', async () => {
 // Dernier PDF genere pour le partage, associe au contenu exact de l'apercu.
 let sharePdfCache = null;
 
+// Listener "retour sur l'onglet" en attente pour le toast WhatsApp desktop
+// (un seul a la fois : un clic repete avant le retour remplace l'ancien
+// plutot que d'en empiler un nouveau).
+let pendingDesktopShareToastListener = null;
+
 // Souris/trackpad (Mac, PC) vs ecran tactile (iPhone, Android, iPad sans
 // pointeur externe) : signal standard de capacite d'affichage (CSS Media
 // Queries), pas un sniff d'User-Agent fragile.
@@ -997,7 +1002,24 @@ document.getElementById('whatsappBtn').addEventListener('click', async () => {
   if (isDesktopPointer()) {
     window.open(waUrl, '_blank');
     await downloadPdf(numero);
-    showToast('PDF téléchargé — ouvre la conversation WhatsApp et joins le fichier.', { duration: 6000 });
+    // Le PDF n'est PAS joint automatiquement : on le dit clairement. L'onglet
+    // WhatsApp Web a le focus, donc on re-affiche le message au retour sur
+    // Devisova pour qu'il ne soit pas manque.
+    const desktopShareMsg = 'PDF téléchargé — il n\'est pas joint automatiquement. Dans WhatsApp, ajoute-le avec 📎 puis envoie.';
+    showToast(desktopShareMsg, { duration: 10000 });
+    if (pendingDesktopShareToastListener) {
+      document.removeEventListener('visibilitychange', pendingDesktopShareToastListener);
+      pendingDesktopShareToastListener = null;
+    }
+    if (document.hidden) {
+      pendingDesktopShareToastListener = function onBack() {
+        if (document.hidden) return;
+        document.removeEventListener('visibilitychange', onBack);
+        pendingDesktopShareToastListener = null;
+        showToast(desktopShareMsg, { duration: 10000 });
+      };
+      document.addEventListener('visibilitychange', pendingDesktopShareToastListener);
+    }
     return;
   }
 
