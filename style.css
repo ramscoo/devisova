@@ -347,22 +347,6 @@ input::placeholder { color: var(--gray-light); }
   margin-top: 20px;
 }
 
-.btn-whatsapp {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  background: #25D366;
-  color: white;
-  border: none;
-  padding: 14px 18px;
-  border-radius: var(--radius-md);
-  font-size: var(--fs-base);
-  font-weight: var(--fw-bold);
-  cursor: pointer;
-  width: 100%;
-}
-
 .remove-ligne {
   background: none;
   border: none;
@@ -992,7 +976,7 @@ input::placeholder { color: var(--gray-light); }
   .account-icon-btn { right: 14px; }
   .toolbar { padding: 10px 16px 0; }
 
-  /* Les actions Imprimer/PDF/WhatsApp du formulaire desktop, et le bouton Enregistrer
+  /* Les actions Imprimer/PDF/Partager du formulaire desktop, et le bouton Enregistrer
      de la barre d'outils, sont remplacés par la barre d'actions mobile fixe en bas —
      on évite le doublon. Devis/Facture, sélecteur de document et Nouveau restent
      visibles : ils n'existent pas dans la barre mobile. */
@@ -1086,7 +1070,7 @@ input::placeholder { color: var(--gray-light); }
   .doc-type input[type="radio"] { min-height: 0; }
   .doc-type { padding: 8px 14px; }
 
-  .btn-primary, .btn-whatsapp, .btn-secondary, .btn-toolbar, .btn-toolbar-primary, .doc-picker-trigger {
+  .btn-primary, .btn-secondary, .btn-toolbar, .btn-toolbar-primary, .doc-picker-trigger {
     min-height: 44px;
   }
 

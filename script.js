@@ -968,72 +968,29 @@ document.getElementById('pdfBtn').addEventListener('click', async () => {
 // Dernier PDF genere pour le partage, associe au contenu exact de l'apercu.
 let sharePdfCache = null;
 
-// Listener "retour sur l'onglet" en attente pour le toast WhatsApp desktop
-// (un seul a la fois : un clic repete avant le retour remplace l'ancien
-// plutot que d'en empiler un nouveau).
-let pendingDesktopShareToastListener = null;
-
-// Souris/trackpad (Mac, PC) vs ecran tactile (iPhone, Android, iPad sans
-// pointeur externe) : signal standard de capacite d'affichage (CSS Media
-// Queries), pas un sniff d'User-Agent fragile.
-function isDesktopPointer() {
-  return !!(window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches);
-}
-
-document.getElementById('whatsappBtn').addEventListener('click', async () => {
+document.getElementById('shareBtn').addEventListener('click', async () => {
   const numero = document.getElementById('pNumero').textContent || 'document';
   const type = docType() === 'facture' ? 'Facture' : 'Devis';
   const client = document.getElementById('cliName').value || 'client';
   const totalTTC = document.getElementById('pTotalTTC').textContent;
   const entName = document.getElementById('entName').value || '';
   const message = `Bonjour ${client}, voici votre ${type.toLowerCase()} ${numero}${entName ? ' de ' + entName : ''} : total ${totalTTC}. N'hésitez pas si vous avez des questions !`;
-
-  const waUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
   const shareData = file => ({ files: [file], title: `${type} ${numero}`, text: message });
 
-  // Desktop (souris/trackpad) : le menu de partage natif du systeme (AirDrop,
-  // Messages, Notes...) n'inclut WhatsApp que si l'app WhatsApp Desktop et son
-  // extension de partage macOS sont installees — rarement le cas. wa.me
-  // (WhatsApp Web) ne peut transporter qu'un texte, jamais un fichier joint
-  // (aucune API publique pour ca, et on ne contourne pas cette limite avec un
-  // hack fragile) : on ouvre donc wa.me immediatement (dans le geste, avant
-  // tout await, pour ne pas etre bloque comme pop-up), PUIS on telecharge le
-  // vrai PDF, et on explique clairement l'etape manuelle a l'utilisateur.
-  if (isDesktopPointer()) {
-    window.open(waUrl, '_blank');
-    await downloadPdf(numero);
-    // Le PDF n'est PAS joint automatiquement : on le dit clairement. L'onglet
-    // WhatsApp Web a le focus, donc on re-affiche le message au retour sur
-    // Devisova pour qu'il ne soit pas manque.
-    const desktopShareMsg = 'PDF téléchargé — il n\'est pas joint automatiquement. Dans WhatsApp, ajoute-le avec 📎 puis envoie.';
-    showToast(desktopShareMsg, { duration: 10000 });
-    if (pendingDesktopShareToastListener) {
-      document.removeEventListener('visibilitychange', pendingDesktopShareToastListener);
-      pendingDesktopShareToastListener = null;
-    }
-    if (document.hidden) {
-      pendingDesktopShareToastListener = function onBack() {
-        if (document.hidden) return;
-        document.removeEventListener('visibilitychange', onBack);
-        pendingDesktopShareToastListener = null;
-        showToast(desktopShareMsg, { duration: 10000 });
-      };
-      document.addEventListener('visibilitychange', pendingDesktopShareToastListener);
-    }
-    return;
-  }
-
-  // Le partage de fichier (avec le PDF) n'est possible que via l'API Web Share du
-  // navigateur (menu de partage natif) — un lien wa.me ne peut transporter que du texte.
-  // On teste cette capacite AVANT tout await (avec un fichier PDF vide, le type suffit) :
-  // si elle manque, on ouvre wa.me tout de suite, encore pendant le geste utilisateur.
-  // (Ne plus pre-ouvrir d'onglet vide "de secours" : sur iPhone, Safari bascule
-  // aussitot sur cet onglet about:blank — la page blanche — et met l'onglet de
-  // l'app en arriere-plan, ou requestAnimationFrame est suspendu : la generation
-  // du PDF reste alors bloquee et le menu de partage n'apparait jamais.)
+  // Le partage de fichier natif (menu systeme : AirDrop, Mail, Messages,
+  // WhatsApp...) n'est jamais suppose par plateforme (desktop/mobile) : seul
+  // canShare({files}) sait reellement si l'appareil/navigateur courant le
+  // supporte, y compris sur Mac/PC ou le support varie. On teste cette
+  // capacite AVANT tout await (avec un fichier PDF vide, le type suffit) :
+  // si elle manque, on telecharge directement, encore pendant le geste
+  // utilisateur. (Ne plus pre-ouvrir d'onglet vide "de secours" : sur iPhone,
+  // Safari bascule aussitot sur cet onglet about:blank — la page blanche — et
+  // met l'onglet de l'app en arriere-plan, ou requestAnimationFrame est
+  // suspendu : la generation du PDF reste alors bloquee.)
   const probe = new File([''], `${numero}.pdf`, { type: 'application/pdf' });
   if (!navigator.share || !navigator.canShare || !navigator.canShare({ files: [probe] })) {
-    window.open(waUrl, '_blank');
+    await downloadPdf(numero);
+    showToast('PDF téléchargé — joins-le manuellement à ton message.', { duration: 6000 });
     return;
   }
 
@@ -1045,7 +1002,7 @@ document.getElementById('whatsappBtn').addEventListener('click', async () => {
     try {
       await navigator.share(shareData(sharePdfCache.file));
     } catch (err) {
-      if (!err || err.name !== 'AbortError') showToast('Le partage a échoué. Utilise « PDF » pour télécharger le document.');
+      if (!err || err.name !== 'AbortError') showToast('Le partage a échoué. Utilise le bouton « Télécharger en PDF » pour récupérer ton document.');
     }
     return;
   }
@@ -1080,7 +1037,7 @@ document.getElementById('whatsappBtn').addEventListener('click', async () => {
       return;
     }
     console.error('[share]', err);
-    showToast('Le partage a échoué. Utilise « PDF » pour télécharger le document.');
+    showToast('Le partage a échoué. Utilise le bouton « Télécharger en PDF » pour récupérer ton document.');
   }
 });
 
@@ -1113,7 +1070,7 @@ if (tabEdit && tabPreview) {
 }
 
 // ===== Barre d'actions mobile (relaie vers les boutons existants) =====
-const mobileActionMap = { mSaveBtn: 'saveBtn', mPrintBtn: 'printBtn', mPdfBtn: 'pdfBtn', mWhatsappBtn: 'whatsappBtn' };
+const mobileActionMap = { mSaveBtn: 'saveBtn', mPrintBtn: 'printBtn', mPdfBtn: 'pdfBtn', mShareBtn: 'shareBtn' };
 Object.entries(mobileActionMap).forEach(([mobileId, targetId]) => {
   const btn = document.getElementById(mobileId);
   const target = document.getElementById(targetId);
