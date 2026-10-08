@@ -1,5 +1,6 @@
 .git
 .wrangler
+.claude
 supabase
 wrangler.jsonc
 .assetsignore
