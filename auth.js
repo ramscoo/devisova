@@ -54,28 +54,54 @@ function showAuthInfo(message) {
 function clearAuthMessages() {
   document.getElementById('authError').hidden = true;
   document.getElementById('authInfo').hidden = true;
+  document.getElementById('resetError').hidden = true;
+  document.getElementById('resetInfo').hidden = true;
+  document.getElementById('recoveryError').hidden = true;
+  document.getElementById('recoveryInfo').hidden = true;
 }
 
+// view : 'loggedOut' | 'loggedIn' | 'resetRequest' | 'recovery'
+function showAccountView(view) {
+  document.getElementById('authLoggedOut').hidden = view !== 'loggedOut';
+  document.getElementById('authLoggedIn').hidden = view !== 'loggedIn';
+  document.getElementById('authResetRequest').hidden = view !== 'resetRequest';
+  document.getElementById('authRecovery').hidden = view !== 'recovery';
+}
+
+// Tant qu'un lien de reinitialisation vient d'etre ouvert (evenement Supabase
+// PASSWORD_RECOVERY, voir onAuthStateChange plus bas), la session active
+// etablie par ce lien ne doit jamais faire basculer l'UI sur l'ecran "connecte"
+// normal avant que l'utilisateur ait choisi son nouveau mot de passe.
+let _recoveryMode = false;
+
 function refreshAuthUI(session) {
-  const loggedOut = document.getElementById('authLoggedOut');
-  const loggedIn = document.getElementById('authLoggedIn');
+  if (_recoveryMode) return;
   const accountBtn = document.getElementById('accountBtn');
   const accountBtnLabel = document.getElementById('accountBtnLabel');
   if (session && session.user) {
-    loggedOut.hidden = true;
-    loggedIn.hidden = false;
+    showAccountView('loggedIn');
     document.getElementById('authEmailDisplay').textContent = session.user.email;
     accountBtnLabel.textContent = 'Connecté';
     accountBtn.setAttribute('aria-label', 'Connecté — mon compte');
   } else {
-    loggedOut.hidden = false;
-    loggedIn.hidden = true;
+    showAccountView('loggedOut');
     accountBtnLabel.textContent = 'Compte';
     accountBtn.setAttribute('aria-label', 'Compte');
   }
 }
 
-supabaseClient.auth.onAuthStateChange((_event, session) => {
+supabaseClient.auth.onAuthStateChange((event, session) => {
+  // Declenche quand l'utilisateur arrive via le lien recu par email (Supabase
+  // etablit une session temporaire dediee a cette seule action). On ouvre
+  // directement l'ecran de choix du nouveau mot de passe, sans jamais passer
+  // par l'ecran "connecte" normal.
+  if (event === 'PASSWORD_RECOVERY') {
+    _recoveryMode = true;
+    clearAuthMessages();
+    document.getElementById('accountDialog').showModal();
+    showAccountView('recovery');
+    return;
+  }
   refreshAuthUI(session);
 });
 
@@ -90,6 +116,13 @@ document.getElementById('accountBtn').addEventListener('click', () => {
 
 document.getElementById('accountCloseBtn').addEventListener('click', () => {
   document.getElementById('accountDialog').close();
+  // Referme un ecran "mot de passe oublie" laisse en cours sans l'envoyer :
+  // une reouverture repart du formulaire de connexion normal. Ne touche
+  // jamais a l'ecran de recuperation (_recoveryMode), lie a une vraie session.
+  if (!_recoveryMode && !document.getElementById('authResetRequest').hidden) {
+    clearAuthMessages();
+    showAccountView('loggedOut');
+  }
 });
 
 document.getElementById('authForm').addEventListener('submit', async (e) => {
@@ -127,6 +160,99 @@ document.getElementById('authSignupBtn').addEventListener('click', async () => {
 
 document.getElementById('authLogoutBtn').addEventListener('click', async () => {
   await supabaseClient.auth.signOut();
+});
+
+document.getElementById('forgotPasswordBtn').addEventListener('click', () => {
+  clearAuthMessages();
+  document.getElementById('resetEmail').value = document.getElementById('authEmail').value;
+  showAccountView('resetRequest');
+});
+
+document.getElementById('resetBackBtn').addEventListener('click', () => {
+  clearAuthMessages();
+  showAccountView('loggedOut');
+});
+
+document.getElementById('resetRequestForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  clearAuthMessages();
+  const email = document.getElementById('resetEmail').value.trim();
+  const btn = document.getElementById('resetSendBtn');
+  const originalLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Envoi…';
+  try {
+    // redirectTo doit correspondre a une URL autorisee dans Supabase (Authentication
+    // > URL Configuration > Redirect URLs) — voir note de configuration transmise
+    // a part, non modifiee ici cote code.
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/app.html`,
+    });
+    if (error) {
+      // mapAuthError ne distingue jamais "email inconnu" (Supabase ne renvoie pas
+      // cette information pour cette methode, precisement pour ne pas reveler si
+      // une adresse est enregistree) : seules de vraies erreurs techniques
+      // (limite de frequence, email invalide...) remontent ici.
+      document.getElementById('resetError').textContent = mapAuthError(error);
+      document.getElementById('resetError').hidden = false;
+      return;
+    }
+    document.getElementById('resetInfo').textContent = 'Si un compte existe avec cette adresse, un email de réinitialisation a été envoyé.';
+    document.getElementById('resetInfo').hidden = false;
+  } catch (err) {
+    // Exception inattendue (reseau coupe, etc.), distincte d'une erreur API
+    // normale (deja geree ci-dessus via { error }) — message generique.
+    document.getElementById('resetError').textContent = mapAuthError(err);
+    document.getElementById('resetError').hidden = false;
+  } finally {
+    // Toujours reactiver le bouton, succes, erreur API ou exception confondus.
+    btn.disabled = false;
+    btn.textContent = originalLabel;
+  }
+});
+
+document.getElementById('recoveryForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  clearAuthMessages();
+  const pw1 = document.getElementById('recoveryPassword').value;
+  const pw2 = document.getElementById('recoveryPasswordConfirm').value;
+  const errEl = document.getElementById('recoveryError');
+  if (pw1 !== pw2) {
+    errEl.textContent = 'Les deux mots de passe ne correspondent pas.';
+    errEl.hidden = false;
+    return;
+  }
+  const btn = document.getElementById('recoverySubmitBtn');
+  const originalLabel = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Mise à jour…';
+  try {
+    const { error } = await supabaseClient.auth.updateUser({ password: pw1 });
+    if (error) {
+      errEl.textContent = mapAuthError(error);
+      errEl.hidden = false;
+      return;
+    }
+    _recoveryMode = false;
+    document.getElementById('recoveryForm').reset();
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    refreshAuthUI(session);
+    if (window.showToast) {
+      window.showToast('Mot de passe mis à jour.');
+    } else {
+      document.getElementById('recoveryInfo').textContent = 'Mot de passe mis à jour.';
+      document.getElementById('recoveryInfo').hidden = false;
+    }
+  } catch (err) {
+    // Exception inattendue, distincte d'une erreur API normale (deja geree
+    // ci-dessus via { error }) — message generique, _recoveryMode reste actif
+    // pour que l'utilisateur puisse reessayer sans perdre l'ecran.
+    errEl.textContent = mapAuthError(err);
+    errEl.hidden = false;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalLabel;
+  }
 });
 
 // Ouverture directe du formulaire de compte via ?auth=open (liens "Se connecter"/

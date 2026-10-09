@@ -940,6 +940,20 @@ input::placeholder { color: var(--gray-light); }
 
 .account-dialog .field { margin-bottom: var(--space-3); }
 
+.account-forgot-link {
+  display: block;
+  width: 100%;
+  text-align: right;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: -6px 0 var(--space-3);
+  font-size: var(--fs-sm);
+  color: var(--blue);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .account-actions {
   display: flex;
   flex-direction: column;

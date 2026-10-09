@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lora:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="tokens.css?v=25">
-<link rel="stylesheet" href="style.css?v=36">
+<link rel="stylesheet" href="style.css?v=37">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
@@ -60,6 +60,7 @@
         <label for="authPassword">Mot de passe</label>
         <input type="password" id="authPassword" required autocomplete="current-password" minlength="6">
       </div>
+      <button type="button" class="account-forgot-link" id="forgotPasswordBtn">Mot de passe oublié ?</button>
       <p id="authError" class="account-error" role="alert" hidden></p>
       <p id="authInfo" class="account-info" hidden></p>
       <div class="account-actions">
@@ -72,6 +73,39 @@
     <h2>Mon compte</h2>
     <p class="account-email" id="authEmailDisplay"></p>
     <button type="button" class="btn-secondary" id="authLogoutBtn">Se déconnecter</button>
+  </div>
+  <div id="authResetRequest" hidden>
+    <h2>Mot de passe oublié</h2>
+    <p class="account-sub">Indique ton adresse email : si un compte existe, tu recevras un lien pour choisir un nouveau mot de passe.</p>
+    <form id="resetRequestForm">
+      <div class="field">
+        <label for="resetEmail">Email</label>
+        <input type="email" id="resetEmail" required autocomplete="email">
+      </div>
+      <p id="resetError" class="account-error" role="alert" hidden></p>
+      <p id="resetInfo" class="account-info" hidden></p>
+      <div class="account-actions">
+        <button type="submit" class="btn-primary" id="resetSendBtn">Envoyer le lien</button>
+        <button type="button" class="btn-secondary" id="resetBackBtn">Retour</button>
+      </div>
+    </form>
+  </div>
+  <div id="authRecovery" hidden>
+    <h2>Nouveau mot de passe</h2>
+    <p class="account-sub">Choisis un nouveau mot de passe pour ton compte.</p>
+    <form id="recoveryForm">
+      <div class="field">
+        <label for="recoveryPassword">Nouveau mot de passe</label>
+        <input type="password" id="recoveryPassword" required autocomplete="new-password" minlength="6">
+      </div>
+      <div class="field">
+        <label for="recoveryPasswordConfirm">Confirmer le mot de passe</label>
+        <input type="password" id="recoveryPasswordConfirm" required autocomplete="new-password" minlength="6">
+      </div>
+      <p id="recoveryError" class="account-error" role="alert" hidden></p>
+      <p id="recoveryInfo" class="account-info" hidden></p>
+      <button type="submit" class="btn-primary" id="recoverySubmitBtn">Mettre à jour le mot de passe</button>
+    </form>
   </div>
 </dialog>
 
@@ -272,7 +306,7 @@
 </nav>
 
 <script src="supabase-config.js?v=2"></script>
-<script src="auth.js?v=3"></script>
+<script src="auth.js?v=4"></script>
 <script src="storage.js?v=3"></script>
 <script src="script.js?v=42"></script>
 </body>
