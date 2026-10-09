@@ -61,6 +61,45 @@ a { color: inherit; }
   font-weight: var(--fw-bold);
 }
 
+/* ===== Connexion / inscription (header) ===== */
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.nav-login {
+  text-decoration: none;
+  color: var(--dark);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  padding: 10px 4px;
+  transition: color var(--transition-fast);
+}
+.nav-login:hover { color: var(--blue); }
+
+.nav-signup {
+  background: white;
+  color: var(--blue);
+  border: 1px solid var(--blue);
+  text-decoration: none;
+  padding: 9px 17px;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  transition: background-color var(--transition-fast);
+}
+.nav-signup:hover { background: var(--blue-soft); }
+
+@media (max-width: 767px) {
+  .nav { flex-wrap: wrap; row-gap: 10px; padding: 16px 20px; }
+  .nav-actions { gap: 6px; }
+  .nav-login { padding: 8px 2px; font-size: 13px; }
+  .nav-signup, .btn-nav { padding: 8px 12px; font-size: 13px; }
+}
+
 /* ===== HERO ===== */
 .hero {
   max-width: 1200px;

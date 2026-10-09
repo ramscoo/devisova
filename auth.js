@@ -128,3 +128,17 @@ document.getElementById('authSignupBtn').addEventListener('click', async () => {
 document.getElementById('authLogoutBtn').addEventListener('click', async () => {
   await supabaseClient.auth.signOut();
 });
+
+// Ouverture directe du formulaire de compte via ?auth=open (liens "Se connecter"/
+// "Créer un compte" depuis la landing page) : un seul appel, execute une fois au
+// chargement du script, independant du clic normal sur #accountBtn — jamais les
+// deux ne se declenchent ensemble puisque celui-ci ne depend d'aucun evenement.
+if (new URLSearchParams(window.location.search).get('auth') === 'open') {
+  clearAuthMessages();
+  document.getElementById('accountDialog').showModal();
+  // Nettoie l'URL (sans recharger la page) pour qu'un retour arriere ou un
+  // rafraichissement ne rouvre pas le modal de maniere inattendue.
+  const url = new URL(window.location.href);
+  url.searchParams.delete('auth');
+  window.history.replaceState({}, '', url);
+}

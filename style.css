@@ -20,21 +20,24 @@ body {
   top: 50%;
   right: 18px;
   transform: translateY(-50%);
-  width: 40px;
   height: 40px;
-  border-radius: 50%;
+  padding: 0 14px;
+  border-radius: var(--radius-md);
   background: var(--bg);
   border: 1px solid var(--border);
   color: var(--dark);
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 6px;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
   cursor: pointer;
   transition: border-color var(--transition-fast), background-color var(--transition-fast), color var(--transition-fast);
 }
 
 .account-icon-btn:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-soft); }
-.account-icon-btn .btn-icon { width: 18px; height: 18px; }
+.account-icon-btn .btn-icon { width: 18px; height: 18px; flex-shrink: 0; }
+.account-btn-label { white-space: nowrap; }
 
 .logo {
   font-size: 24px;
@@ -981,8 +984,8 @@ input::placeholder { color: var(--gray-light); }
    d'actions fixe, ajustements de confort tactile
    =================================================== */
 @media (max-width: 767px) {
-  .topbar { padding: 14px 60px; }
-  .account-icon-btn { right: 14px; }
+  .topbar { padding: 14px 92px; }
+  .account-icon-btn { right: 10px; padding: 0 10px; font-size: 12px; }
   .toolbar { padding: 10px 16px 0; }
 
   /* Les actions Imprimer/PDF/Partager du formulaire desktop, et le bouton Enregistrer
