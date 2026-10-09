@@ -399,7 +399,27 @@ async function applySession(session, { isInitial = false } = {}) {
   if (!isInitial && _bootstrapped) {
     if (window.refreshDocumentsUI) window.refreshDocumentsUI();
     if (window.refreshClientPicker) window.refreshClientPicker();
-    if (window.applyProfile && window.loadProfile) window.applyProfile(window.loadProfile());
+    if (window.applyProfile && window.loadProfile) {
+      const newProfile = window.loadProfile();
+      const formProfile = window.collectProfile ? window.collectProfile() : null;
+      const formHasContent = !!(formProfile && (formProfile.entName || formProfile.entSiret ||
+        formProfile.entAdresse || formProfile.entTel || formProfile.entEmail || formProfile.logoData));
+      const formMatchesNewProfile = !!(formProfile && newProfile &&
+        formProfile.entName === newProfile.entName &&
+        formProfile.entSiret === newProfile.entSiret &&
+        formProfile.entAdresse === newProfile.entAdresse &&
+        formProfile.entTel === newProfile.entTel &&
+        formProfile.entEmail === newProfile.entEmail &&
+        (formProfile.logoData || null) === (newProfile.logoData || null));
+      // Si le formulaire affiche deja des infos entreprise/logo differentes du
+      // profil qu'on vient de charger (saisie en cours sur un compte different,
+      // ou champs d'un ancien document deja enregistre), on ne les ecrase PAS
+      // silencieusement : on ne reapplique le profil que s'il n'y a rien a
+      // perdre (formulaire vide) ou qu'il correspond deja a ce qui est affiche.
+      if (!formHasContent || formMatchesNewProfile) {
+        window.applyProfile(newProfile);
+      }
+    }
     if (window.renderForm) window.renderForm();
     if (window.renderPreview) window.renderPreview();
     if (window.markSnapshotClean) window.markSnapshotClean();
@@ -498,13 +518,24 @@ function setDocuments(newArr) {
   }
 }
 
+// Le trigger SQL "documents_enforce_quota" (migration
+// 20261009120000_enforce_free_quota_trigger.sql) rejette toute creation
+// au-dela du quota avec ce marqueur dans le message d'erreur Postgres —
+// la seule verification faisant vraiment autorite (cote serveur, jamais
+// contournable par un appel REST direct). canCreateDocument() reste une
+// verification cote client de confort (evite un aller-retour reseau dans
+// le cas courant) mais ne protege plus seule le quota.
+function isServerQuotaError(error) {
+  return !!(error && typeof error.message === 'string' && error.message.includes('FREE_QUOTA_EXCEEDED'));
+}
+
 // Sauvegarde UNITAIRE d'un document, avec confirmation reelle (bouton
 // "Enregistrer"). Contrairement a setDocuments() (fire-and-forget), on attend
 // la reponse de Supabase / l'ecriture localStorage, et le cache en memoire
 // (donc l'historique et "Mes documents") n'est mis a jour QU'APRES reussite :
 // un echec ne laisse jamais un document affiche comme enregistre.
 // Upsert par id : une nouvelle tentative avec le meme id ne cree pas de doublon.
-// Renvoie { ok: true } ou { ok: false, error }.
+// Renvoie { ok: true } ou { ok: false, error, quotaExceeded? }.
 async function saveDocument(doc) {
   const saved = JSON.parse(JSON.stringify(doc)); // copie isolee du formulaire
   const withDoc = (arr) => {
@@ -518,7 +549,7 @@ async function saveDocument(doc) {
       const { error } = await cloudUpsertDocument(saved);
       if (error) {
         console.error('[storage] echec sauvegarde document', saved.id, error);
-        return { ok: false, error };
+        return { ok: false, error, quotaExceeded: isServerQuotaError(error) };
       }
     } else {
       localSaveDocuments(withDoc(_documentsCache)); // peut lever (ex. QuotaExceededError)

@@ -65,7 +65,7 @@ function renderForm() {
     row.innerHTML = `
       <div class="ligne-field ligne-field-desc">
         <span class="ligne-field-label">Description</span>
-        <input type="text" autocomplete="off" value="${l.desc}" data-i="${i}" data-field="desc" placeholder="Ex. Pose de carrelage" aria-label="Description de la prestation">
+        <input type="text" autocomplete="off" value="" data-i="${i}" data-field="desc" placeholder="Ex. Pose de carrelage" aria-label="Description de la prestation">
       </div>
       <div class="ligne-field ligne-field-qty">
         <span class="ligne-field-label">Qté</span>
@@ -227,7 +227,15 @@ function renderPreview() {
     const totalLigne = (l.qty || 0) * (l.prix || 0);
     totalHT += totalLigne;
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td>${l.desc || '—'}</td><td>${l.qty || 0}</td><td>${fmt(l.prix || 0, currency)}</td><td>${fmt(totalLigne, currency)}</td>`;
+    const tdDesc = document.createElement('td');
+    tdDesc.textContent = l.desc || '—';
+    const tdQty = document.createElement('td');
+    tdQty.textContent = l.qty || 0;
+    const tdPrix = document.createElement('td');
+    tdPrix.textContent = fmt(l.prix || 0, currency);
+    const tdTotal = document.createElement('td');
+    tdTotal.textContent = fmt(totalLigne, currency);
+    tr.append(tdDesc, tdQty, tdPrix, tdTotal);
     tbody.appendChild(tr);
   });
 
@@ -605,7 +613,10 @@ function applyState(d) {
 
 // variant : '' (info), 'warning' (quota/attention) ou 'error'. Les messages
 // importants restent affiches plus longtemps que la confirmation standard.
-function showToast(message, { variant = '', duration = 2500 } = {}) {
+// actionHref/actionLabel sont toujours des constantes fixees par ce fichier,
+// jamais une valeur saisie par l'utilisateur : construits via createElement
+// (pas d'innerHTML), par coherence avec la correction XSS des lignes de devis.
+function showToast(message, { variant = '', duration = 2500, actionHref = null, actionLabel = null } = {}) {
   let toast = document.getElementById('toast');
   if (!toast) {
     toast = document.createElement('div');
@@ -614,7 +625,15 @@ function showToast(message, { variant = '', duration = 2500 } = {}) {
     toast.setAttribute('role', 'status');
     document.body.appendChild(toast);
   }
-  toast.textContent = message;
+  toast.textContent = '';
+  toast.appendChild(document.createTextNode(message));
+  if (actionHref && actionLabel) {
+    const link = document.createElement('a');
+    link.href = actionHref;
+    link.className = 'toast-action';
+    link.textContent = actionLabel;
+    toast.appendChild(link);
+  }
   toast.classList.toggle('toast-warning', variant === 'warning');
   toast.classList.toggle('toast-error', variant === 'error');
   toast.classList.add('show');
@@ -639,6 +658,7 @@ function setSaveBusy(busy) {
 }
 
 const QUOTA_MESSAGE = 'Limite atteinte : 3 documents ce mois-ci. Passe à Pro pour en créer davantage.';
+const QUOTA_TOAST_OPTS = { variant: 'warning', duration: 6000, actionHref: 'index.html#pricing', actionLabel: 'Découvrir l\'offre Pro' };
 
 document.getElementById('saveBtn').addEventListener('click', async () => {
   if (saveInFlight) return;
@@ -647,7 +667,7 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
   }
   const isNewDocument = !isEditingSavedDocument();
   if (isNewDocument && !DevisovaStorage.canCreateDocument()) {
-    showToast(`${QUOTA_MESSAGE} Ce document n'a pas été enregistré.`, { variant: 'warning', duration: 6000 });
+    showToast(`${QUOTA_MESSAGE} Ce document n'a pas été enregistré.`, QUOTA_TOAST_OPTS);
     return;
   }
   const state = collectState();
@@ -661,7 +681,13 @@ document.getElementById('saveBtn').addEventListener('click', async () => {
   const result = await DevisovaStorage.saveDocument(state);
   setSaveBusy(false);
   if (!result.ok) {
-    if (result.error && result.error.name === 'QuotaExceededError') {
+    if (result.quotaExceeded) {
+      // Rejete par le serveur (trigger SQL) : le client pensait avoir un credit
+      // (cache local pas a jour, ex. creation sur un autre appareil ce mois-ci)
+      // mais le serveur, qui fait seul autorite, a refuse. Le document affiche
+      // n'est pas touche.
+      showToast(`${QUOTA_MESSAGE} Ce document n'a pas été enregistré.`, QUOTA_TOAST_OPTS);
+    } else if (result.error && result.error.name === 'QuotaExceededError') {
       showToast(`Stockage local plein : libère de la place (supprime un ancien document) puis réessaie.`, { variant: 'error', duration: 7000 });
     } else {
       showToast(`Le document n'a pas été enregistré. Vérifie ta connexion puis réessaie.`, { variant: 'error', duration: 6000 });
@@ -685,7 +711,7 @@ document.getElementById('newBtn').addEventListener('click', () => {
   // Quota verifie AVANT la confirmation "modifications non enregistrees" : au
   // quota atteint, seul le message s'affiche et le document ouvert reste intact.
   if (!DevisovaStorage.canCreateDocument()) {
-    showToast(QUOTA_MESSAGE, { variant: 'warning', duration: 6000 });
+    showToast(QUOTA_MESSAGE, QUOTA_TOAST_OPTS);
     return;
   }
   if (!confirmDiscard()) return;

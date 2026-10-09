@@ -886,6 +886,15 @@ input::placeholder { color: var(--gray-light); }
 .toast.show {
   opacity: 1;
   transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+}
+
+.toast-action {
+  display: block;
+  margin-top: 6px;
+  color: white;
+  text-decoration: underline;
+  font-weight: 700;
 }
 
 /* Largeur naturelle (sinon left:50% limite le toast a une colonne etroite)
